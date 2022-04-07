@@ -37,5 +37,6 @@ export const trigger = (target,key) => {
 export const effect = (fn:Function) => {
     const _effect = new ReactiveEffect(fn)
     _effect.run()
+    //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，会报错
     return _effect.run.bind(_effect)
 }
