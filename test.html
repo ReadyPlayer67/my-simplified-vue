@@ -7,24 +7,32 @@
 <body>
 <script>
     class Foo{
-        constructor(_fn) {
-            this.fn = _fn
+        constructor(_val) {
+            this.val = _val
         }
         run(){
             console.log(this)
-            return this.fn()
+            return this.val
         }
     }
-    const effect = (fn) => {
-        const foo =new Foo(fn)
-        // return foo.run
-        return foo.run.bind(foo)
+    const effect = (val) => {
+        const foo =new Foo(val)
+        return foo.run
+        // return foo.run.bind(foo)
     }
-    const result = effect(() => {
-        return 'foo'
-    })
+    //这里的result就是run函数，如果不用bind指定this,就默认是window对象或者undefined，反正不是你想要的，这时候this.val就拿不到值，报错
+    const result = effect('foo')
 
     console.log(result())
+    // function run(){
+    //     console.log(this)
+    // }
+    // const obj = {
+    //     run
+    // }
+    // run()
+    // obj.run()
+    // run.bind(obj)()
 </script>
 
 </body>
