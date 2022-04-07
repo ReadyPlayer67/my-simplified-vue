@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<script>
+    class Foo{
+        constructor(_fn) {
+            this.fn = _fn
+        }
+        run(){
+            console.log(this)
+            return this.fn()
+        }
+    }
+    const effect = (fn) => {
+        const foo =new Foo(fn)
+        // return foo.run
+        return foo.run.bind(foo)
+    }
+    const result = effect(() => {
+        return 'foo'
+    })
+
+    console.log(result())
+</script>
+
+</body>
+</html>
