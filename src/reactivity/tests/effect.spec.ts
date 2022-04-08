@@ -2,10 +2,10 @@
 import {reactive} from "../reactive";
 import {effect} from "../effect";
 
-describe('effect',() => {
-    it('happy path',() => {
+describe('effect', () => {
+    it('happy path', () => {
         const user = reactive({
-            age:10
+            age: 10
         })
         //初始化
         let nextAge;
@@ -28,5 +28,31 @@ describe('effect',() => {
         const r = runner()
         expect(r).toBe('foo')
         expect(foo).toBe(12)
+    });
+
+    it('scheduler', function () {
+        //1.通过effect的第二个参数给定一个scheduler的方法
+        //2.effect第一次执行的时候，还会执行fn
+        //3.当响应式对象set update的时候不会执行fn而是执行scheduler
+        //4.如果说当执行runner的时候，会再次执行fn
+        let dummy
+        let run: any
+        const scheduler = jest.fn(() => {
+            run = runner
+        })
+        const obj = reactive({foo:1})
+        const runner = effect(() => {
+            dummy = obj.foo
+        },{ scheduler })
+        //scheduler一开始不会被调用
+        expect(scheduler).not.toHaveBeenCalled()
+        expect(dummy).toBe(1)
+        obj.foo++
+        //响应式对象变化的时候scheduler方法被调用了一次，而effect的第一个参数方法不会调用
+        expect(scheduler).toHaveBeenCalledTimes(1)
+        expect(dummy).toBe(1)
+        //执行run方法，即effect的第一个参数方法，依赖响应式对象的值才变化
+        run()
+        expect(dummy).toBe(2)
     });
 })
