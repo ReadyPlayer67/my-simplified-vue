@@ -1,10 +1,16 @@
+import {extend} from "../shared";
+
 type effectOptions = {
     scheduler?: Function;
+    onStop?: Function
 };
 
 class ReactiveEffect {
     private _fn: any
     public scheduler: Function|undefined
+    deps = []
+    active = true
+    onStop?: Function
     //scheduler? 表示该参数是一个可选参数
     constructor(fn,scheduler?:Function|undefined) {
         this._fn = fn
@@ -14,6 +20,22 @@ class ReactiveEffect {
         activeEffect = this
         return this._fn()
     }
+    stop(){
+        //设置一个flag变量active，避免每次stop的时候都重复遍历deps
+        if(this.active){
+            cleanupEffect(this)
+            if(this.onStop){
+                this.onStop()
+            }
+            this.active = false
+        }
+    }
+}
+
+const cleanupEffect = (effect) => {
+    effect.deps.forEach((dep:Set<ReactiveEffect>) => {
+        dep.delete(effect)
+    })
 }
 
 let targetMap:Map<any,Map<string,Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
@@ -30,7 +52,12 @@ export const track = (target,key) => {
         dep = new Set()
         depsMap.set(key,dep)
     }
+    //这里有个regression问题，因为activeEffect是在执行effect.run()的时候赋值的，而只要触发了get操作就会执行到这里读取activeEffect
+    //在happy path单测中,只触发了get但没有执行effect，所以这时候activeEffect是undefined
+    if(!activeEffect) return
     dep.add(activeEffect)
+    //在ReactiveEffect上挂载一个deps属性，用于记录存有这个effect的deps容器，这样执行stop的时候可以遍历删除
+    activeEffect.deps.push(dep)
 }
 
 export const trigger = (target,key) => {
@@ -46,7 +73,16 @@ export const trigger = (target,key) => {
 
 export const effect = (fn:Function,option:effectOptions = {}) => {
     const _effect = new ReactiveEffect(fn,option.scheduler)
+    //用一个extend方法将option上的熟悉拷贝到_effect上
+    extend(_effect,option)
     _effect.run()
     //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，会报错
-    return _effect.run.bind(_effect)
+    const runner: any = _effect.run.bind(_effect)
+    //函数也是对象，可以添加属性，把effect挂载到runner上，用于之后执行stop
+    runner.effect = _effect
+    return runner
+}
+
+export const stop = (runner) => {
+    runner.effect.stop()
 }

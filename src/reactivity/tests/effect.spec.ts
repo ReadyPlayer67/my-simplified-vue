@@ -1,6 +1,7 @@
 //effect单元测试
 import {reactive} from "../reactive";
-import {effect} from "../effect";
+import {effect,stop} from "../effect";
+import {run} from "jest";
 
 describe('effect', () => {
     it('happy path', () => {
@@ -54,5 +55,36 @@ describe('effect', () => {
         //执行run方法，即effect的第一个参数方法，依赖响应式对象的值才变化
         run()
         expect(dummy).toBe(2)
+    });
+
+    it('stop', function () {
+        //实现一个stop方法，接收effect返回的runner作为参数，当执行stop方法后，停止响应式更新
+        //当执行runner方法以后，重新启动响应式更新
+        let dummy
+        const obj = reactive({prop:1})
+        const runner = effect(() => {
+            dummy = obj.prop
+        })
+        obj.prop = 2
+        expect(dummy).toBe(2)
+        stop(runner)
+        obj.prop = 3
+        expect(dummy).toBe(2)
+        runner()
+        expect(dummy).toBe(3)
+    });
+
+    it('onStop', function () {
+        //实现一个onStop方法，和scheduler一样作为effect的第二个参数选项，每当stop时就执行一次onStop方法
+        const obj = reactive({
+            foo:1
+        })
+        const onStop = jest.fn()
+        let dummy
+        const runner = effect(() => {
+            dummy = obj.foo
+        },{onStop})
+        stop(runner)
+        expect(onStop).toBeCalledTimes(1)
     });
 })
