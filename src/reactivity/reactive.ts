@@ -1,17 +1,14 @@
-import {track, trigger} from "./effect";
+import {mutableHandler, readonlyHandler} from "./baseHandlers";
 
 export const reactive = (raw: any) => {
-    const res = new Proxy(raw,{
-        get(target: any, key: string | symbol): any {
-            track(target,key)
-            return Reflect.get(target, key)
-        },
-        set(target: any, key: string | symbol, value: any): boolean {
-            //这里有个坑，要先执行反射set操作，再执行trigger，不然effect里拿到依赖的值还是原始值
-            const res = Reflect.set(target,key,value)
-            trigger(target,key)
-            return res
-        }
-    })
-    return res
+    return createActiveObject(raw, mutableHandler)
+}
+
+export const readonly = (raw: any) => {
+    return createActiveObject(raw, readonlyHandler)
+}
+
+//用一个工具函数将new Proxy这样的底层代码封装起来
+function createActiveObject(raw: any, baseHandler) {
+    return new Proxy(raw, baseHandler)
 }
