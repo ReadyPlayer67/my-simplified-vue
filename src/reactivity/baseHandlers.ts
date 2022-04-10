@@ -1,4 +1,5 @@
 import {track, trigger} from "./effect";
+import {ReactiveFlags} from "./reactive";
 
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter()
@@ -8,6 +9,12 @@ const readonlyGet = createGetter(true)
 //使用高阶函数的技巧，这样就可以通过传参区分isReadonly
 function createGetter(isReadonly = false) {
     return (target: any, key: string | symbol) => {
+        //通过proxy拦截的get操作，判断获取的key，如果是ReactiveFlags.IS_REACTIVE，就return isReadonly
+        if(key === ReactiveFlags.IS_REACTIVE){
+            return !isReadonly
+        }else if(key === ReactiveFlags.IS_READONLY){
+            return isReadonly
+        }
         if (!isReadonly) {
             track(target, key)
         }

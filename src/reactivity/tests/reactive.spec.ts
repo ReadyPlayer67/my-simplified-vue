@@ -1,5 +1,5 @@
 //先写一个单元测试测试创建reactive
-import {reactive} from "../reactive";
+import {isReactive, reactive} from "../reactive";
 
 describe('reactive',() => {
     it('happy path', function () {
@@ -7,5 +7,7 @@ describe('reactive',() => {
         const observed = reactive(original)
         expect(observed).not.toBe(original)
         expect(observed.foo).toBe(1)
+        expect(isReactive(observed)).toBe(true)
+        expect(isReactive(original)).toBe(false)
     });
 })
