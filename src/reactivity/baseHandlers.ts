@@ -1,28 +1,33 @@
 import {track, trigger} from "./effect";
 import {reactive, ReactiveFlags, readonly} from "./reactive";
-import {isObject} from "../shared";
+import {extend, isObject} from "../shared";
 
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter()
 const set = createSetter()
 const readonlyGet = createGetter(true)
+const shallowReadonlyGet = createGetter(true, true)
 
 //使用高阶函数的技巧，这样就可以通过传参区分isReadonly
-function createGetter(isReadonly = false) {
+function createGetter(isReadonly = false, shallow = false) {
     return (target: any, key: string | symbol) => {
         //通过proxy拦截的get操作，判断获取的key，如果是ReactiveFlags.IS_REACTIVE，就return isReadonly
-        if(key === ReactiveFlags.IS_REACTIVE){
+        if (key === ReactiveFlags.IS_REACTIVE) {
             return !isReadonly
-        }else if(key === ReactiveFlags.IS_READONLY){
+        } else if (key === ReactiveFlags.IS_READONLY) {
             return isReadonly
+        }
+        const res = Reflect.get(target, key)
+        //如果是shallowReadonly，就不需要做嵌套readonly转换了，直接return
+        if (shallow) {
+            return res
+        }
+        //如果get到的也是个对象，对这个对象也实现reactive/readonly，从而实现嵌套的响应式/只读
+        if (isObject(res)) {
+            return isReadonly ? readonly(res) : reactive(res)
         }
         if (!isReadonly) {
             track(target, key)
-        }
-        const res = Reflect.get(target, key)
-        //如果get到的也是个对象，对这个对象也实现reactive/readonly，从而实现嵌套的响应式/只读
-        if(isObject(res)){
-            return isReadonly ? readonly(res) : reactive(res)
         }
         return res
     }
@@ -50,3 +55,7 @@ export const readonlyHandler = {
         return true
     }
 }
+
+export const shallowReadonlyHandler = extend({}, readonlyHandler, {
+    get:shallowReadonlyGet
+})
