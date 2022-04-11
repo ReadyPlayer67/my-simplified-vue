@@ -1,5 +1,6 @@
 import {track, trigger} from "./effect";
-import {ReactiveFlags} from "./reactive";
+import {reactive, ReactiveFlags, readonly} from "./reactive";
+import {isObject} from "../shared";
 
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter()
@@ -18,7 +19,12 @@ function createGetter(isReadonly = false) {
         if (!isReadonly) {
             track(target, key)
         }
-        return Reflect.get(target, key)
+        const res = Reflect.get(target, key)
+        //如果get到的也是个对象，对这个对象也实现reactive/readonly，从而实现嵌套的响应式/只读
+        if(isObject(res)){
+            return isReadonly ? readonly(res) : reactive(res)
+        }
+        return res
     }
 }
 

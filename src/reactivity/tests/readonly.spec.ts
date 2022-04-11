@@ -2,11 +2,12 @@ import {isReadonly, readonly} from "../reactive";
 
 describe('readonly', () => {
     it('happy path', function () {
-        const original = {foo: 1}
+        const original = {foo: 1,nested:{bar:2}}
         const wrapper = readonly(original)
         expect(wrapper).not.toBe(original)
         expect(wrapper.foo).toBe(1)
         expect(isReadonly(wrapper)).toBe(true)
+        expect(isReadonly(wrapper.nested)).toBe(true)
         expect(isReadonly(original)).toBe(false)
     });
 
