@@ -65,10 +65,13 @@ describe('effect', () => {
         const runner = effect(() => {
             dummy = obj.prop
         })
-        obj.prop = 2
+        // obj.prop = 2
+        obj.prop++
         expect(dummy).toBe(2)
         stop(runner)
-        obj.prop = 3
+        // obj.prop = 3
+        //这里如果使用++，stop会失效，因为++相当于obj.prop = obj.prop + 1，会重新触发一次get操作和track，响应式就又生效了
+        obj.prop++
         expect(dummy).toBe(2)
         runner()
         expect(dummy).toBe(3)

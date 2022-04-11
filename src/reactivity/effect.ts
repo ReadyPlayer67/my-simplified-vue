@@ -5,6 +5,8 @@ type effectOptions = {
     onStop?: Function
 };
 
+let activeEffect //用一个全局变量表示当前get操作触发的effect
+let shouldTrack
 class ReactiveEffect {
     private _fn: any
     public scheduler: Function|undefined
@@ -17,8 +19,17 @@ class ReactiveEffect {
         this.scheduler = scheduler
     }
     run(){
+        //执行run方法，其实是this._fn()的时候会触发收集依赖track，
+        // 所以在这里拦截，如果stop了(this.active === false)，就不执行activeEffect = this,避免收集依赖
+        if(!this.active){
+            return this._fn()
+        }
+        shouldTrack = true
         activeEffect = this
-        return this._fn()
+        const result = this._fn()//这里_fn会触发get和track
+        shouldTrack = false
+        return result
+
     }
     stop(){
         //设置一个flag变量active，避免每次stop的时候都重复遍历deps
@@ -36,12 +47,14 @@ const cleanupEffect = (effect) => {
     effect.deps.forEach((dep:Set<ReactiveEffect>) => {
         dep.delete(effect)
     })
+    //effect.deps中每个set都被清空了，那本身也可以清空了
+    effect.deps.length = 0
 }
 
 let targetMap:Map<any,Map<string,Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
-let activeEffect //用一个全局变量表示当前get操作触发的effect
 //在get操作的是触发依赖收集操作，将ReactiveEffect实例收集到一个dep容器中
 export const track = (target,key) => {
+    if(!isTracking()) return
     let depsMap = targetMap.get(target)
     if(!depsMap){
         depsMap = new Map()
@@ -52,12 +65,16 @@ export const track = (target,key) => {
         dep = new Set()
         depsMap.set(key,dep)
     }
-    //这里有个regression问题，因为activeEffect是在执行effect.run()的时候赋值的，而只要触发了get操作就会执行到这里读取activeEffect
-    //在happy path单测中,只触发了get但没有执行effect，所以这时候activeEffect是undefined
-    if(!activeEffect) return
+    if(dep.has(activeEffect)) return
     dep.add(activeEffect)
     //在ReactiveEffect上挂载一个deps属性，用于记录存有这个effect的deps容器，这样执行stop的时候可以遍历删除
     activeEffect.deps.push(dep)
+}
+
+function isTracking(){
+    //这里有个regression问题，因为activeEffect是在执行effect.run()的时候赋值的，而只要触发了get操作就会执行到这里读取activeEffect
+    //在happy path单测中,只触发了get但没有执行effect，所以这时候activeEffect是undefined
+    return shouldTrack && activeEffect !== undefined
 }
 
 export const trigger = (target,key) => {
