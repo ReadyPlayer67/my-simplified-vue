@@ -27,6 +27,10 @@ export const isReadonly = (value) => {
     return !!value[ReactiveFlags.IS_READONLY]
 }
 
+export const isProxy = (value) => {
+    return isReactive(value) || isReadonly(value)
+}
+
 //用一个工具函数将new Proxy这样的底层代码封装起来
 function createActiveObject(raw: any, baseHandler) {
     return new Proxy(raw, baseHandler)
