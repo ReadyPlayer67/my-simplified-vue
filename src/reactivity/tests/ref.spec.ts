@@ -1,4 +1,4 @@
-import {isRef, ref, unRef} from "../ref";
+import {isRef, proxyRefs, ref, unRef} from "../ref";
 import {effect} from "../effect";
 import {reactive} from "../reactive";
 
@@ -55,5 +55,24 @@ describe('ref', function () {
         const a = ref(1)
         expect(unRef(a)).toBe(1)
         expect(unRef(1)).toBe(1)
+    });
+
+    it('proxyRefs', function () {
+        //实现proxyRefs，其实就是将ref解包，在template里面不用.value去拿到ref的值
+        const user = {
+            age:ref(10),
+            name:'aaa'
+        }
+        const proxyUser = proxyRefs(user)
+        expect(user.age.value).toBe(10)
+        expect(proxyUser.age).toBe(10)
+        expect(proxyUser.name).toBe('aaa')
+        //这里修改proxy对象的熟悉会影响到原始对象user
+        proxyUser.age = 20
+        expect(proxyUser.age).toBe(20)
+        expect(user.age.value).toBe(20)
+        proxyUser.age = ref(30)
+        expect(proxyUser.age).toBe(30)
+        expect(user.age.value).toBe(30)
     });
 });

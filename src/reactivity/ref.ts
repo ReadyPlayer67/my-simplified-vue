@@ -57,3 +57,22 @@ export function isRef(ref){
 export function unRef(ref){
     return isRef(ref) ? ref._val : ref
 }
+
+export function proxyRefs(objectWithRef){
+    //拦截get操作，如果get到的是ref类型，就返回.value，否则直接返回get到的值
+    return new Proxy(objectWithRef,{
+        get(target: any, key: string | symbol): any {
+            //用上面实现的unRef直接可以实现
+            return unRef(Reflect.get(target,key))
+        },
+        set(target: any, key: string | symbol, value: any): boolean {
+            //拦截set，一般情况下都是直接执行Reflect.set，直接替换
+            //有一种特殊情况，如果这个属性的值是一个ref，set的值不是ref，是一个普通变量，就需要把这个普通变量赋给ref的value
+            if(isRef(target[key]) && !isRef(value)){
+                return target[key].value = value
+            }else{
+                return Reflect.set(target,key,value)
+            }
+        }
+    })
+}
