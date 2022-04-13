@@ -4,11 +4,13 @@ import {reactive} from "./reactive";
 
 //ref接收的都是基本类型的变量，无法用proxy做代理
 //通过创建一个对象来包裹基本类型，通过改写get set方法去拦截
+//这也就是用ref包裹以后必须通过.value去获取值的原因
 class RefImpl<T> {
     private _val: T;
     //每一个ref都必须有一个dep用于存放effect，依赖收集
     public dep;
     private _rawVal: T;
+    public __v_isRef = true;
     constructor(val) {
         this._rawVal = val
         this._val = convert(val)
@@ -44,4 +46,14 @@ function trackRefValue(ref) {
 
 export function ref<T>(val) {
     return new RefImpl<T>(val)
+}
+
+export function isRef(ref){
+    //通过一个属性来判断是否的ref，即是否是RefImpl实例
+    //这里要转换成boolean，不然有可能拿到undefined
+    return !!ref.__v_isRef
+}
+
+export function unRef(ref){
+    return isRef(ref) ? ref._val : ref
 }
