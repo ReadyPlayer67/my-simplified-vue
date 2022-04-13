@@ -65,13 +65,17 @@ export const track = (target,key) => {
         dep = new Set()
         depsMap.set(key,dep)
     }
+    trackEffects(dep)
+}
+
+export function trackEffects (dep){
     if(dep.has(activeEffect)) return
     dep.add(activeEffect)
     //在ReactiveEffect上挂载一个deps属性，用于记录存有这个effect的deps容器，这样执行stop的时候可以遍历删除
     activeEffect.deps.push(dep)
 }
 
-function isTracking(){
+export function isTracking(){
     //这里有个regression问题，因为activeEffect是在执行effect.run()的时候赋值的，而只要触发了get操作就会执行到这里读取activeEffect
     //在happy path单测中,只触发了get但没有执行effect，所以这时候activeEffect是undefined
     return shouldTrack && activeEffect !== undefined
@@ -79,6 +83,10 @@ function isTracking(){
 
 export const trigger = (target,key) => {
     const dep:Set<ReactiveEffect> = targetMap.get(target)!.get(key) as Set<ReactiveEffect>
+    triggerEffects(dep)
+}
+
+export function triggerEffects (dep){
     for(const effect of dep){
         if(effect.scheduler){
             effect.scheduler()
