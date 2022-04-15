@@ -1,2 +1,2 @@
 # my-simplified-vue
-简化版vue
+实现简化版vue
