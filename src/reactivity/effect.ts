@@ -7,7 +7,7 @@ type effectOptions = {
 
 let activeEffect //用一个全局变量表示当前get操作触发的effect
 let shouldTrack
-class ReactiveEffect {
+export class ReactiveEffect {
     private _fn: any
     public scheduler: Function|undefined
     deps = []
