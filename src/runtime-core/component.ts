@@ -1,7 +1,7 @@
-export function createComponentInstance(vNode) {
+export function createComponentInstance(vnode) {
     const instance = {
-        vNode,
-        type:vNode.type
+        vnode,
+        type:vnode.type
     }
     return instance
 }
@@ -17,7 +17,7 @@ export function setupComponent(instance) {
 
 function setupStatefulComponent(instance) {
     //调用setup()，拿到返回值
-    //通过instance.vNode.type拿到组件options，在从中拿到setup
+    //通过instance.vnode.type拿到组件options，在从中拿到setup
     const Component = instance.type
     const {setup} = Component
     if (setup) {
@@ -38,8 +38,6 @@ function handleSetupResult(instance, setupResult) {
 
 function finishComponentSetup(instance){
     const Component = instance.type
-    //给instance设置render
-    if(!instance.render){
-        instance.render = Component.render
-    }
+    //给instance设置render，这里假设用户写的组件一定有render方法
+    instance.render = Component.render
 }
