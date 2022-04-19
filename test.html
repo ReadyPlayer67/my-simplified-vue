@@ -6,33 +6,45 @@
 </head>
 <body>
 <script>
-    class Foo{
-        constructor(_val) {
-            this.val = _val
-        }
-        run(){
-            console.log(this)
-            return this.val
-        }
+    // class Foo{
+    //     constructor(_val) {
+    //         this.val = _val
+    //     }
+    //     run(){
+    //         console.log(this)
+    //         return this.val
+    //     }
+    // }
+    // const effect = (val) => {
+    //     const foo =new Foo(val)
+    //     return foo.run
+    //     // return foo.run.bind(foo)
+    // }
+    // //这里的result就是run函数，如果不用bind指定this,就默认是window对象或者undefined，反正不是你想要的，这时候this.val就拿不到值，报错
+    // const result = effect('foo')
+    //
+    // console.log(result())
+    function run(){
+        console.log(this)
     }
-    const effect = (val) => {
-        const foo =new Foo(val)
-        return foo.run
-        // return foo.run.bind(foo)
+    const obj = {
+        run
     }
-    //这里的result就是run函数，如果不用bind指定this,就默认是window对象或者undefined，反正不是你想要的，这时候this.val就拿不到值，报错
-    const result = effect('foo')
+    run()
+    obj.run()
+    run.bind(obj)()
 
-    console.log(result())
-    // function run(){
-    //     console.log(this)
-    // }
-    // const obj = {
-    //     run
-    // }
-    // run()
-    // obj.run()
-    // run.bind(obj)()
+    //通过call给一个函数绑定this
+    const obj2 = {
+        foo:1
+    }
+    function fn(){
+        return this.foo
+    }
+    const r1 = fn.call(window)
+    const r2 = fn.call(obj2)
+    console.log(r1)
+    console.log(r2)
 </script>
 
 </body>

@@ -59,10 +59,10 @@ function mountComponent(vnode, container) {
 }
 
 function setupRenderEffect(instance, container) {
-    //拿到组件的子组件，再交给patch方法处理
-    const subTree = instance.render()
-    console.log(subTree)
-    //得到element类型的子vNode
+    //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
+    const {proxy} = instance
+    const subTree = instance.render.call(proxy)
     //vnode->element->mountElement
+    //拿到组件的子组件，再交给patch方法处理
     patch(subTree, container)
 }

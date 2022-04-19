@@ -7,14 +7,14 @@ export const App = {
             'div',
             {id:'root'},
             [
-                h('p',{class:'red'},'red'),
+                h('p',{class:'red'},this.msg),
                 h('p',{class:'blue'},'blue'),
             ]
         )
     },
     setup() {
         return {
-            msg: 'vue'
+            msg: 'red'
         }
     }
 }
