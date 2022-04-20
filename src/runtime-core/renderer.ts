@@ -22,7 +22,9 @@ function processElement(vnode, container) {
 
 function mountElement(vnode, container) {
     const {type,props,children} = vnode
-    const el = document.createElement(type) //type就是element的类型(div,p,h1...)
+    //使用连续赋值，把el赋值给vnode.el
+    //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
+    const el = vnode.el = document.createElement(type) //type就是element的类型(div,p,h1...)
     for (const key in props) {
         el.setAttribute(key,props[key])
     }
@@ -49,9 +51,9 @@ function processComponent(vnode, container) {
     mountComponent(vnode, container)
 }
 
-function mountComponent(vnode, container) {
+function mountComponent(initialVnode, container) {
     //创建一个组件实例
-    const instance = createComponentInstance(vnode)
+    const instance = createComponentInstance(initialVnode)
     //初始化组件
     setupComponent(instance)
     //执行render方法
@@ -65,4 +67,7 @@ function setupRenderEffect(instance, container) {
     //vnode->element->mountElement
     //拿到组件的子组件，再交给patch方法处理
     patch(subTree, container)
+    //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
+    //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
+    instance.vnode.el = subTree.el
 }
