@@ -1,5 +1,6 @@
 import {createComponentInstance, setupComponent} from "./component";
 import {isObject} from "../shared";
+import {ShapeFlags} from "../shared/ShapeFlags";
 
 export function render(vnode, container) {
 
@@ -7,10 +8,11 @@ export function render(vnode, container) {
 }
 
 function patch(vnode, container) {
-    //如果vnode的type是字符串，他就是element类型
-    if (typeof vnode.type === 'string') {
+    const {shapeFlag} = vnode
+    //通过位运算符判断vnode的类型
+    if (shapeFlag & ShapeFlags.ELEMENT) {
         processElement(vnode, container)
-    } else if (isObject(vnode.type)) {//如果vnode的type是object，就是component类型
+    } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
         processComponent(vnode, container)
     }
 }
@@ -21,17 +23,17 @@ function processElement(vnode, container) {
 }
 
 function mountElement(vnode, container) {
-    const {type,props,children} = vnode
+    const {type,props,children,shapeFlag} = vnode
     //使用连续赋值，把el赋值给vnode.el
     //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
     const el = vnode.el = document.createElement(type) //type就是element的类型(div,p,h1...)
     for (const key in props) {
         el.setAttribute(key,props[key])
     }
-    if(typeof children === 'string'){
+    if(shapeFlag & ShapeFlags.TEXT_CHILDREN){
         //如果children是字符串，就直接显示
         el.textContent = children
-    }else if(Array.isArray(children)){
+    }else if(shapeFlag & ShapeFlags.ARRAY_CHILDREN){
         //如果children是数组，说明是子元素，继续调用patch渲染
         mountChildren(vnode,el)
     }
