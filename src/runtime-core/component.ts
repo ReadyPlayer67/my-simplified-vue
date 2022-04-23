@@ -1,9 +1,12 @@
 import {PublicInstanceProxyHandlers} from "./componentPublicInstance";
+import {initProps} from "./componentProps";
+import {shallowReadonly} from "../reactivity/reactive";
 
 export function createComponentInstance(vnode) {
     const instance = {
         vnode,
         type:vnode.type,
+        props:{},
         setupState:{}
     }
     return instance
@@ -11,7 +14,8 @@ export function createComponentInstance(vnode) {
 
 export function setupComponent(instance) {
     //TODO
-    //initProps
+    //把vnode上的props挂载到组件instance上
+    initProps(instance,instance.vnode.props)
     //initSlots
 
     //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
@@ -26,7 +30,7 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({_:instance},PublicInstanceProxyHandlers)
     const {setup} = Component
     if (setup) {
-        const setupResult = setup()
+        const setupResult = setup(shallowReadonly(instance.props))
         handleSetupResult(instance, setupResult)
     }
     finishComponentSetup(instance)

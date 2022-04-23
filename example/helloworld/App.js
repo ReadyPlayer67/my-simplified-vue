@@ -1,7 +1,9 @@
 import {h} from '../../lib/guide-mini-vue.esm.js'
+import {Foo} from "./Foo.js";
 
 window.self = null
 export const App = {
+    name:'App',
     //template需要实现单文件组件编译，暂时没实现，先用render函数
     render() {
         //因为现在没实现绑定实现，所以把this赋值为window.self来查看this上的属性
@@ -19,7 +21,10 @@ export const App = {
             },
             [
                 h('p', {class: 'red'}, this.msg),
-                h('p', {class: 'blue'}, 'blue'),
+                h(Foo,{
+                    count:1
+                })
+                // h('p', {class: 'blue'}, 'blue'),
             ]
         )
     },
