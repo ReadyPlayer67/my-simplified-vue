@@ -51,13 +51,21 @@
     // console.log(r2)
 
     //给target添加属性实现传值
-    const a = {foo:1}
-    const p = new Proxy({...a,bar:2},{
-        get(target, key, receiver) {
-            console.log(target.bar)
-        }
-    })
-    p.foo
+    // const a = {foo:1}
+    // const p = new Proxy({...a,bar:2},{
+    //     get(target, key, receiver) {
+    //         console.log(target.bar)
+    //     }
+    // })
+    // p.foo
+    //bind的偏函数功能
+    const a = (p1,p2) => {
+        console.log(p1)
+        console.log(p2)
+    }
+    a('p1')
+    const b = a.bind(null,'test')
+    b('p1')
 </script>
 
 </body>
