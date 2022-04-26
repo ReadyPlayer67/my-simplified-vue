@@ -1,6 +1,7 @@
 import {createComponentInstance, setupComponent} from "./component";
 import {isObject} from "../shared";
 import {ShapeFlags} from "../shared/ShapeFlags";
+import {Fragment} from "./vnode";
 
 export function render(vnode, container) {
 
@@ -9,12 +10,24 @@ export function render(vnode, container) {
 
 function patch(vnode, container) {
     const {shapeFlag} = vnode
-    //通过位运算符判断vnode的类型
-    if (shapeFlag & ShapeFlags.ELEMENT) {
-        processElement(vnode, container)
-    } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-        processComponent(vnode, container)
+    switch (vnode.type) {
+        case Fragment:
+            processFragment(vnode,container)
+            break
+        default:
+            //通过位运算符判断vnode的类型
+            if (shapeFlag & ShapeFlags.ELEMENT) {
+                processElement(vnode, container)
+            } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+                processComponent(vnode, container)
+            }
+            break
     }
+}
+
+//处理Fragment类型节点
+function processFragment(vnode,container) {
+    mountChildren(vnode,container)
 }
 
 //处理element类型的vnode

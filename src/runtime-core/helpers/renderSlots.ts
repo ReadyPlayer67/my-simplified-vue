@@ -1,4 +1,4 @@
-import {createVNode} from "../vnode";
+import {createVNode, Fragment} from "../vnode";
 
 //props是子组件往外传递的变量对象
 export function renderSlots(slots,name,props){
@@ -7,6 +7,6 @@ export function renderSlots(slots,name,props){
     console.log(slot)
     if(typeof slot === 'function'){
         //这里的slot就是(props) => normalizeSlotValue(value(props))这个函数
-        return createVNode('div',{},slot(props))
+        return createVNode(Fragment,{},slot(props))
     }
 }
