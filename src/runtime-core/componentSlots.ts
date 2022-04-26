@@ -1,5 +1,9 @@
+import {ShapeFlags} from "../shared/ShapeFlags";
+
 export function initSlots(instance,children){
-    normalizeObjectSlots(children,instance.slots)
+    if(instance.vnode.shapeFlag & ShapeFlags.SLOT_CHILDREN){
+        normalizeObjectSlots(children,instance.slots)
+    }
 }
 
 function normalizeObjectSlots(children,slots){
@@ -7,8 +11,7 @@ function normalizeObjectSlots(children,slots){
         const value = children[key]
         //父组件上的具名插槽是Record<string,function>
         slots[key] = (props) => {
-            // console.log(value)
-            // console.log(props)
+            //value就是父组件写的函数({age}) => h('p', {}, 'header' + age)
             return normalizeSlotValue(value(props))
         }
     }

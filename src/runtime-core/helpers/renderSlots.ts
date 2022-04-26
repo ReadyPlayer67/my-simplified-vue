@@ -6,7 +6,7 @@ export function renderSlots(slots,name,props){
     const slot = slots[name]
     console.log(slot)
     if(typeof slot === 'function'){
-        //这里的slot
+        //这里的slot就是(props) => normalizeSlotValue(value(props))这个函数
         return createVNode('div',{},slot(props))
     }
 }
