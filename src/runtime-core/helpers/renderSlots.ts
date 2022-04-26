@@ -4,7 +4,7 @@ import {createVNode, Fragment} from "../vnode";
 export function renderSlots(slots,name,props){
     //slot此时是一个function
     const slot = slots[name]
-    console.log(slot)
+    // console.log(slot)
     if(typeof slot === 'function'){
         //这里的slot就是(props) => normalizeSlotValue(value(props))这个函数
         return createVNode(Fragment,{},slot(props))
