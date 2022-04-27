@@ -20,7 +20,6 @@ export function createComponentInstance(vnode) {
 }
 
 export function setupComponent(instance) {
-    //TODO
     //把vnode上的props挂载到组件instance上
     initProps(instance,instance.vnode.props)
     initSlots(instance,instance.vnode.children)
@@ -36,9 +35,11 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({_:instance},PublicInstanceProxyHandlers)
     const {setup} = Component
     if (setup) {
+        setCurrentInstance(instance)
         const setupResult = setup(shallowReadonly(instance.props),{
             emit:instance.emit
         })
+        setCurrentInstance(null)
         handleSetupResult(instance, setupResult)
     }
     finishComponentSetup(instance)
@@ -57,4 +58,13 @@ function finishComponentSetup(instance){
     const Component = instance.type
     //给instance设置render，这里假设用户写的组件一定有render方法
     instance.render = Component.render
+}
+
+let currentInstance = null
+export function getCurrentInstance(){
+    return currentInstance
+}
+
+function setCurrentInstance(instance){
+    currentInstance = instance
 }
