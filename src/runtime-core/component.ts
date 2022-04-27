@@ -4,14 +4,17 @@ import {shallowReadonly} from "../reactivity/reactive";
 import {emit} from "./componentEmit";
 import {initSlots} from "./componentSlots";
 
-export function createComponentInstance(vnode) {
+export function createComponentInstance(vnode,parent) {
+    console.log(parent)
     const instance = {
         vnode,
         type:vnode.type,
         props:{},
         slots:{},
         setupState:{},
-        emit:() => {}
+        emit:() => {},
+        provides:{},
+        parent
     }
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
