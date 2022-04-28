@@ -5,7 +5,6 @@ import {emit} from "./componentEmit";
 import {initSlots} from "./componentSlots";
 
 export function createComponentInstance(vnode,parent) {
-    console.log(parent)
     const instance = {
         vnode,
         type:vnode.type,
@@ -13,7 +12,8 @@ export function createComponentInstance(vnode,parent) {
         slots:{},
         setupState:{},
         emit:() => {},
-        provides:{},
+        //将parent.provides赋值给当前instance的provides实现跨组件传值
+        provides:parent ? parent.provides : {},
         parent
     }
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
