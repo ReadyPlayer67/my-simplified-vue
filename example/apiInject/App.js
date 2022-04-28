@@ -10,7 +10,6 @@ export const Provider = {
         return h('div',{},[h('p',{},'Provider'),h(ProviderTwo)])
     }
 }
-
 const ProviderTwo = {
     name:'ProviderTwo',
     setup(){
@@ -24,8 +23,6 @@ const ProviderTwo = {
         return h('div',{},[h('p',{},'ProviderTwo: - '+this.foo),h(Consumer)])
     }
 }
-
-
 const Consumer = {
     name:'Consumer',
     setup(){

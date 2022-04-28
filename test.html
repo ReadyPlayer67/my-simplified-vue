@@ -59,13 +59,18 @@
     // })
     // p.foo
     //bind的偏函数功能
-    const a = (p1,p2) => {
-        console.log(p1)
-        console.log(p2)
-    }
-    a('p1')
-    const b = a.bind(null,'test')
-    b('p1')
+    // const a = (p1,p2) => {
+    //     console.log(p1)
+    //     console.log(p2)
+    // }
+    // a('p1')
+    // const b = a.bind(null,'test')
+    // b('p1')
+
+    const obj = {a:1,b:2}
+    let {a} = obj
+    a = obj.a = 100
+    console.log(obj)
 </script>
 
 </body>
