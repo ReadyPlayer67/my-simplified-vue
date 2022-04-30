@@ -3,6 +3,7 @@ import {initProps} from "./componentProps";
 import {shallowReadonly} from "../reactivity/reactive";
 import {emit} from "./componentEmit";
 import {initSlots} from "./componentSlots";
+import {proxyRefs} from "../reactivity";
 
 export function createComponentInstance(vnode,parent) {
     const instance = {
@@ -53,7 +54,7 @@ function handleSetupResult(instance, setupResult) {
     //setupResult有可能是function或者object
     //如果是function就认为是render函数，如果是object就注入到组件上下文中
     if (typeof setupResult === 'object') {
-        instance.setupState = setupResult
+        instance.setupState = proxyRefs(setupResult)
     }
 }
 

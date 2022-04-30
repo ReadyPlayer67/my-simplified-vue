@@ -3,6 +3,7 @@ import {isObject} from "../shared";
 import {ShapeFlags} from "../shared/ShapeFlags";
 import {Fragment, Text} from "./vnode";
 import {createAppApi} from "./createApp";
+import {effect} from "../reactivity/effect";
 
 export function createRenderer(options) {
     const {
@@ -87,15 +88,21 @@ export function createRenderer(options) {
         setupRenderEffect(instance, container)
     }
     function setupRenderEffect(instance, container) {
-        //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
-        const {proxy} = instance
-        const subTree = instance.render.call(proxy)
-        //vnode->element->mountElement
-        //拿到组件的子组件，再交给patch方法处理
-        patch(subTree, container, instance)
-        //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
-        //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
-        instance.vnode.el = subTree.el
+        //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
+        //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
+        effect(() => {
+            //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
+            const {proxy} = instance
+            const subTree = instance.render.call(proxy)
+            console.log(subTree)
+            //vnode->element->mountElement
+            //拿到组件的子组件，再交给patch方法处理
+            patch(subTree, container, instance)
+            //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
+            //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
+            instance.vnode.el = subTree.el
+        })
+
     }
     return {
         createApp:createAppApi(render)
