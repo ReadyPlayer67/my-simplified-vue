@@ -67,10 +67,11 @@
     // const b = a.bind(null,'test')
     // b('p1')
 
-    const obj = {a:1,b:2}
+    const obj = {a:{foo:1},b:2}
     let {a} = obj
-    a = obj.a = 100
-    console.log(obj)
+    a = {foo:2}
+    // obj.a = {foo:2}
+    console.log(a,obj)
 </script>
 
 </body>

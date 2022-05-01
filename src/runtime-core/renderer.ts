@@ -13,41 +13,50 @@ export function createRenderer(options) {
     } = options
     function render(vnode, container) {
         //入口parentComponent是null
-        patch(vnode, container, null)
+        patch(null,vnode, container, null)
     }
-    function patch(vnode, container, parentComponent) {
-        const {shapeFlag} = vnode
-        switch (vnode.type) {
+    //n1代表旧的vnode，n2代表新的vnode
+    function patch(n1,n2, container, parentComponent) {
+        const {shapeFlag} = n2
+        switch (n2.type) {
             case Fragment:
-                processFragment(vnode, container, parentComponent)
+                processFragment(n1,n2, container, parentComponent)
                 break
             case Text:
-                processText(vnode, container)
+                processText(n1,n2, container)
                 break
             default:
                 //通过位运算符判断vnode的类型
                 if (shapeFlag & ShapeFlags.ELEMENT) {
-                    processElement(vnode, container, parentComponent)
+                    processElement(n1,n2, container, parentComponent)
                 } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-                    processComponent(vnode, container, parentComponent)
+                    processComponent(n1,n2, container, parentComponent)
                 }
                 break
         }
     }
     //处理Fragment类型节点
-    function processFragment(vnode, container, parentComponent) {
-        mountChildren(vnode, container, parentComponent)
+    function processFragment(n1,n2, container, parentComponent) {
+        mountChildren(n2, container, parentComponent)
     }
     //处理Text类型节点
-    function processText(vnode, container) {
+    function processText(n1,n2, container) {
         //这里的children就是文本
-        const {children} = vnode
-        const textNode = (vnode.el = document.createTextNode(children))
+        const {children} = n2
+        const textNode = (n2.el = document.createTextNode(children))
         container.append(textNode)
     }
     //处理element类型的vnode
-    function processElement(vnode, container, parentComponent) {
-        mountElement(vnode, container, parentComponent)
+    function processElement(n1,n2, container, parentComponent) {
+        if(!n1){//如果n1不存在，是初始化
+            mountElement(n2, container, parentComponent)
+        }else{
+            patchElement(n1,n2,container)
+        }
+    }
+    function patchElement(n1,n2,container){
+        console.log('n1',n1)
+        console.log('n2',n2)
     }
     function mountElement(vnode, container, parentComponent) {
         const {type, props, children, shapeFlag} = vnode
@@ -71,13 +80,13 @@ export function createRenderer(options) {
     }
     function mountChildren(vnode, container, parentComponent) {
         vnode.children.forEach(vnode => {
-            patch(vnode, container, parentComponent)
+            patch(null,vnode, container, parentComponent)
         })
     }
     //处理组件类型的vnode
-    function processComponent(vnode, container, parentComponent) {
+    function processComponent(n1,n2, container, parentComponent) {
         //挂载虚拟节点
-        mountComponent(vnode, container, parentComponent)
+        mountComponent(n2, container, parentComponent)
     }
     function mountComponent(initialVnode, container, parentComponent) {
         //创建一个组件实例
@@ -85,22 +94,33 @@ export function createRenderer(options) {
         //初始化组件
         setupComponent(instance)
         //执行render方法
-        setupRenderEffect(instance, container)
+        setupRenderEffect(instance,initialVnode, container)
     }
-    function setupRenderEffect(instance, container) {
+    function setupRenderEffect(instance,initialVnode, container) {
         //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
         //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
         effect(() => {
-            //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
-            const {proxy} = instance
-            const subTree = instance.render.call(proxy)
-            console.log(subTree)
-            //vnode->element->mountElement
-            //拿到组件的子组件，再交给patch方法处理
-            patch(subTree, container, instance)
-            //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
-            //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
-            instance.vnode.el = subTree.el
+            //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
+            if(!instance.isMounted){
+                //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
+                const {proxy} = instance
+                const subTree = (instance.subTree = instance.render.call(proxy))
+                //vnode->element->mountElement
+                //拿到组件的子组件，再交给patch方法处理
+                patch(null,subTree, container, instance)
+                //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
+                //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
+                initialVnode.el = subTree.el
+                instance.isMounted = true
+            }else{
+                const {proxy} = instance
+                const subTree = instance.render.call(proxy)
+                const prevSubTree = instance.subTree
+                instance.subTree = subTree
+                patch(prevSubTree,subTree, container, instance)
+                initialVnode.el = subTree.el
+            }
+
         })
 
     }

@@ -18,7 +18,7 @@ export const App = {
         return h('div',{
             id:'root'
         },[
-            h('div',{},'count' + this.count),
+            h('div',{},'count:' + this.count),
             h('button',{
                 onClick:this.onClick
             },'click')

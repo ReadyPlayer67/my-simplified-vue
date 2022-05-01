@@ -13,6 +13,8 @@ export function createComponentInstance(vnode,parent) {
         slots:{},
         setupState:{},
         emit:() => {},
+        isMounted:false,
+        subTree:{},
         //将parent.provides赋值给当前instance的provides实现跨组件传值
         provides:parent ? parent.provides : {},
         parent
@@ -46,7 +48,6 @@ function setupStatefulComponent(instance) {
         setCurrentInstance(null)
         handleSetupResult(instance, setupResult)
     }
-    finishComponentSetup(instance)
 }
 
 function handleSetupResult(instance, setupResult) {
@@ -54,8 +55,10 @@ function handleSetupResult(instance, setupResult) {
     //setupResult有可能是function或者object
     //如果是function就认为是render函数，如果是object就注入到组件上下文中
     if (typeof setupResult === 'object') {
+        //使用proxyRefs解包setupResult中的ref
         instance.setupState = proxyRefs(setupResult)
     }
+    finishComponentSetup(instance)
 }
 
 function finishComponentSetup(instance){

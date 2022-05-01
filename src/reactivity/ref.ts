@@ -55,7 +55,7 @@ export function isRef(ref){
 }
 
 export function unRef(ref){
-    return isRef(ref) ? ref._val : ref
+    return isRef(ref) ? ref.value : ref
 }
 
 export function proxyRefs(objectWithRef){
