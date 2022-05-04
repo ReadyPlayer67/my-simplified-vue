@@ -7,21 +7,50 @@ export const App = {
         const onClick = () => {
             count.value++
         }
+        const props = ref({
+            foo:'foo',
+            bar:'bar'
+        })
+        const onChangePropsDemo1 = () => {
+            props.value.foo = 'new-foo'
+        }
+        const onChangePropsDemo2 = () => {
+            props.value.foo = undefined
+        }
+        const onChangePropsDemo3 = () => {
+            props.value = {
+                foo:'foo'
+            }
+        }
         return {
             count,
-            onClick
+            onClick,
+            onChangePropsDemo1,
+            onChangePropsDemo2,
+            onChangePropsDemo3,
+            props
         }
     },
     //实现更新就是在this.count变化的时候触发依赖，重新生成一个vnode树
     //并和之前的vnode树进行对比，更新变化的部分
     render(){
         return h('div',{
-            id:'root'
+            id:'root',
+            ...this.props
         },[
             h('div',{},'count:' + this.count),
             h('button',{
                 onClick:this.onClick
-            },'click')
+            },'click'),
+            h('button',{
+                onClick:this.onChangePropsDemo1
+            },'changeProps - 值改变了 - 修改'),
+            h('button',{
+                onClick:this.onChangePropsDemo2
+            },'changeProps - 值变成了 undefined - 删除'),
+            h('button',{
+                onClick:this.onChangePropsDemo3
+            },'changeProps - key 在新的里面没有了 - 删除'),
         ])
     }
 }

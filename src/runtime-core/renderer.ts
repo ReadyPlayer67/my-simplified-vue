@@ -1,5 +1,5 @@
 import {createComponentInstance, setupComponent} from "./component";
-import {isObject} from "../shared";
+import {EMPTY_OBJ, isObject} from "../shared";
 import {ShapeFlags} from "../shared/ShapeFlags";
 import {Fragment, Text} from "./vnode";
 import {createAppApi} from "./createApp";
@@ -7,9 +7,9 @@ import {effect} from "../reactivity/effect";
 
 export function createRenderer(options) {
     const {
-        patchProp,
-        insert,
-        createElement
+        createElement: hostCreateElement,
+        patchProp: hostPatchProp,
+        insert: hostInsert,
     } = options
     function render(vnode, container) {
         //入口parentComponent是null
@@ -57,15 +57,40 @@ export function createRenderer(options) {
     function patchElement(n1,n2,container){
         console.log('n1',n1)
         console.log('n2',n2)
+        const oldProps = n1.props || EMPTY_OBJ
+        const newProps = n2.props || EMPTY_OBJ
+        const el = (n2.el = n1.el)
+        patchProps(el,oldProps,newProps)
+    }
+    function patchProps(el,oldProps,newProps){
+        if(oldProps !== newProps){
+            for (const key in newProps) {
+                const oldProp = oldProps[key]
+                const newProp = newProps[key]
+                if(oldProp !== newProp){
+                    hostPatchProp(el,key,oldProp,newProp)
+                }
+            }
+            //oldProps不为空对象才需要进行检查
+            //注意：对象是引用类型，所以不能用==={}判断，应当对同一个引用进行判断
+            if(oldProps !== EMPTY_OBJ){
+                for(const key in oldProps){
+                    //新props中不存在这个key了
+                    if(!(key in newProps)){
+                        hostPatchProp(el,key,oldProps[key],null)
+                    }
+                }
+            }
+        }
     }
     function mountElement(vnode, container, parentComponent) {
         const {type, props, children, shapeFlag} = vnode
         //使用连续赋值，把el赋值给vnode.el
         //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
-        const el = vnode.el = createElement(type)
+        const el = vnode.el = hostCreateElement(type)
         for (const key in props) {
             const val = props[key]
-            patchProp(el,key,val)
+            hostPatchProp(el,key,null,val)
         }
         if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
             //如果children是字符串，就直接显示
@@ -76,7 +101,7 @@ export function createRenderer(options) {
         }
         //把element append到页面上
         // container.append(el)
-        insert(el,container)
+        hostInsert(el,container)
     }
     function mountChildren(vnode, container, parentComponent) {
         vnode.children.forEach(vnode => {
