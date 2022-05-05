@@ -23,9 +23,20 @@ function insert(el,parent){
     parent.append(el)
 }
 
+function remove(children){
+    const parent = children.parentNode
+    if(parent){
+        parent.removeChild(children)
+    }
+}
+
+function setElementText(el,children){
+    el.textContent = children
+}
+
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
-const renderer:any = createRenderer({createElement,patchProp,insert})
+const renderer:any = createRenderer({createElement,patchProp,insert,remove,setElementText})
 export function createApp(...args){
     return renderer.createApp(...args)
 }
