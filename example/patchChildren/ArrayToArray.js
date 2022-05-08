@@ -35,16 +35,16 @@ import { ref, h } from "../../lib/guide-mini-vue.esm.js";
 // (a b)
 // (a b) c d
 // i = 2, e1 = 1, e2 = 3
-const prevChildren = [
-    h("p", { key: "A" }, "A"),
-    h("p", { key: "B" }, "B")
-];
-const nextChildren = [
-  h("p", { key: "A" }, "A"),
-  h("p", { key: "B" }, "B"),
-  h("p", { key: "C" }, "C"),
-  h("p", { key: "D" }, "D"),
-];
+// const prevChildren = [
+//     h("p", { key: "A" }, "A"),
+//     h("p", { key: "B" }, "B")
+// ];
+// const nextChildren = [
+//   h("p", { key: "A" }, "A"),
+//   h("p", { key: "B" }, "B"),
+//   h("p", { key: "C" }, "C"),
+//   h("p", { key: "D" }, "D"),
+// ];
 
 // 右侧
 // (a b)
@@ -60,6 +60,38 @@ const nextChildren = [
 //     h("p", { key: "A" }, "A"),
 //     h("p", { key: "B" }, "B"),
 // ];
+
+// 4. 老的比新的长
+//     删除老的
+// 左侧
+// (a b) c
+// (a b)
+// i = 2, e1 = 2, e2 = 1
+// const prevChildren = [
+//   h("p", { key: "A" }, "A"),
+//   h("p", { key: "B" }, "B"),
+//   h("p", { key: "C" }, "C"),
+//   h("p", { key: "D" }, "D"),
+// ];
+// const nextChildren = [
+//     h("p", { key: "A" }, "A"),
+//     h("p", { key: "B" }, "B")
+// ];
+
+// 右侧
+// a (b c)
+// (b c)
+// i = 0, e1 = 0, e2 = -1
+const prevChildren = [
+    h("p", { key: "A" }, "A"),
+    h("p", { key: "B" }, "B"),
+    h("p", { key: "C" }, "C"),
+];
+const nextChildren = [
+    h("p", { key: "B" }, "B"),
+    h("p", { key: "C" }, "C")
+];
+
 export default {
     name: "ArrayToArray",
     setup() {

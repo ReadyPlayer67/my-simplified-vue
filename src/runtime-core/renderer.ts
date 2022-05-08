@@ -99,8 +99,9 @@ export function createRenderer(options) {
 
     function patchKeyedChildren(c1, c2, container, parentComponent, parentAnchor) {
         let i = 0
+        const l2 = c2.length
         let e1 = c1.length - 1
-        let e2 = c2.length - 1
+        let e2 = l2 - 1
 
         function isSameVNodeType(n1, n2) {
             return n1.type === n2.type && n1.key === n2.key
@@ -135,14 +136,19 @@ export function createRenderer(options) {
         //新的比老的长 a b -> d c a b
         if (i > e1) {
             if (i <= e2) {
-                //i~e2是新增的节点下标范围，如果是在前面新增节点e2+1就是insertBefore插入节点的下标
+                //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入节点的下标
                 const nextPos = e2 + 1
                 //nextPos<c2.length说明是在前面新增节点，否则是在后面新增节点，insertBefore的第二个参数就是null
-                const anchor = nextPos < c2.length ? c2[nextPos].el : null
+                const anchor = nextPos < l2 ? c2[nextPos].el : null
                 while (i <= e2) {
                     patch(null, c2[i], container, parentComponent, anchor)
                     i++
                 }
+            }
+        }else if(i > e2){//老的比新的长 a b c -> a b
+            while(i <= e1){
+                hostRemove(c1[i].el)
+                i++
             }
         }
     }
