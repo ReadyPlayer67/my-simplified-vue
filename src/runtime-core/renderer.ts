@@ -159,6 +159,17 @@ export function createRenderer(options) {
             let patched = 0
             //新建一个map存放key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
             const keyToNewIndexMap = new Map()
+            //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置，值是在老节点数组中的位置（从1开始数，0代表新增的）
+            //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
+            const newIndexToOldIndexMap = new Array(toBePatched)
+            for (let i = 0; i < toBePatched; i++) {
+                //初始化数组，0代表老节点数组中不存在这个节点
+                newIndexToOldIndexMap[i] = 0
+            }
+            //用一个变量标记节点是否是移动的
+            let moved = false
+            //记录当前最大的newIndex
+            let maxNewIndexSoFar = 0
             //遍历新节点数组，生成map影射
             for (let i = s2; i <= e2; i++) {
                 const nextChild = c2[i]
@@ -168,11 +179,11 @@ export function createRenderer(options) {
             for (let i = s1; i <= e1; i++) {
                 const prevChild = c1[i]
                 //如果已经比对过的数量超过需要对比的数量，说明不需要在比对了，直接删除 ced->ec
-                if(patched >= toBePatched){
+                if (patched >= toBePatched) {
                     hostRemove(prevChild.el)
                     continue
                 }
-                let newIndex
+                let newIndex //老节点在新节点数组中的位置下标
                 //如果用户设置了key属性，可以直接通过key直接查找到新元素的位置
                 if (prevChild.key !== null) {
                     newIndex = keyToNewIndexMap.get(prevChild.key)
@@ -190,12 +201,44 @@ export function createRenderer(options) {
                     //不存在删除
                     hostRemove(c1[i].el)
                 } else {
+                    //下标是在变动部分（i~e2）的下标，所以newIndex要减去s2
+                    //值是在老节点数组的位置，但是不能是0，因为0代表在老节点数组中不存在该节点，所以+1以示区分
+                    newIndexToOldIndexMap[newIndex - s2] = i + 1
+                    //记录下来当前最大的newIndex，如果大于说明是加在后面的节点，不需要移动
+                    if (newIndex >= maxNewIndexSoFar) {
+                        maxNewIndexSoFar = newIndex
+                    } else {
+                        moved = true
+                    }
                     //存在则继续patch深层次对比新更新老两个元素（props，children...）
                     patch(prevChild, c2[newIndex], container, parentComponent, null)
                     patched++
                 }
             }
-
+            console.log(newIndexToOldIndexMap)
+            //获取最长递增子序列[5,3,4] -> [1,2]
+            const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : []
+            // console.log(increasingNewIndexSequence)
+            let j = increasingNewIndexSequence.length - 1
+            //这里使用反向循环，因为我们insertBefore插入元素需要后一个元素，后一个元素有可能是不稳定的
+            for (let i = toBePatched - 1; i >= 0; i--) {
+                const nextIndex = i + s2
+                const nextChild = c2[nextIndex]
+                const anchor = nextIndex + 1 < l2 ? c2[nextIndex + 1].el : null
+                //0代表老的节点数组中没有该元素，执行插入
+                if (newIndexToOldIndexMap[i] === 0) {
+                    patch(null, nextChild, container, parentComponent, anchor)
+                } else if (moved) {
+                    //如果j<0代表最长递增子序列是空，说明顺序全反了
+                    //或者当前节点不在稳定递增的序列中，就需要移动
+                    if (j < 0 || i !== increasingNewIndexSequence[j]) {
+                        console.log('移动位置')
+                        hostInsert(nextChild.el, container, anchor)
+                    } else {
+                        j--
+                    }
+                }
+            }
         }
 
     }
@@ -303,4 +346,46 @@ export function createRenderer(options) {
     return {
         createApp: createAppApi(render)
     }
+}
+
+//求最长递增子序列的算法
+function getSequence(arr) {
+    const p = arr.slice();
+    const result = [0];
+    let i, j, u, v, c;
+    const len = arr.length;
+    for (i = 0; i < len; i++) {
+        const arrI = arr[i];
+        if (arrI !== 0) {
+            j = result[result.length - 1];
+            if (arr[j] < arrI) {
+                p[i] = j;
+                result.push(i);
+                continue;
+            }
+            u = 0;
+            v = result.length - 1;
+            while (u < v) {
+                c = (u + v) >> 1;
+                if (arr[result[c]] < arrI) {
+                    u = c + 1;
+                } else {
+                    v = c;
+                }
+            }
+            if (arrI < arr[result[u]]) {
+                if (u > 0) {
+                    p[i] = result[u - 1];
+                }
+                result[u] = i;
+            }
+        }
+    }
+    u = result.length;
+    v = result[u - 1];
+    while (u-- > 0) {
+        result[u] = v;
+        v = p[v];
+    }
+    return result;
 }
