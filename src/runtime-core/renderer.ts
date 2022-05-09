@@ -134,8 +134,8 @@ export function createRenderer(options) {
         console.log('e1: ' + e1)
         console.log('e2: ' + e2)
         //新的比老的长 a b -> d c a b
-        if (i > e1) {
-            if (i <= e2) {
+        if (i > e1) {//e1指针移动到了i前面，说明老的节点都比对完了
+            if (i <= e2) {//e2指针还在i的位置或后面，说明新的节点数组中还有没处理的节点，这些遗留的节点就是新增节点
                 //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入节点的下标
                 const nextPos = e2 + 1
                 //nextPos<c2.length说明是在前面新增节点，否则是在后面新增节点，insertBefore的第二个参数就是null
@@ -157,7 +157,7 @@ export function createRenderer(options) {
             const toBePatched = e2 - s2 + 1
             //已经对比过的节点数量
             let patched = 0
-            //新建一个map存放key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
+            //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
             const keyToNewIndexMap = new Map()
             //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置，值是在老节点数组中的位置（从1开始数，0代表新增的）
             //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
