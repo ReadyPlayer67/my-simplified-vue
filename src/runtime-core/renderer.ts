@@ -4,6 +4,7 @@ import {ShapeFlags} from "../shared/ShapeFlags";
 import {Fragment, Text} from "./vnode";
 import {createAppApi} from "./createApp";
 import {effect} from "../reactivity/effect";
+import {shouldUpdateComponent} from "./componentUpdateUtils";
 
 export function createRenderer(options) {
     const {
@@ -106,6 +107,7 @@ export function createRenderer(options) {
         function isSameVNodeType(n1, n2) {
             return n1.type === n2.type && n1.key === n2.key
         }
+
         //对比左侧和右侧排除相同的前置节点和后置节点
         //对比左侧
         while (i <= e1 && i <= e2) {
@@ -162,7 +164,7 @@ export function createRenderer(options) {
             let patched = 0
             //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
             const keyToNewIndexMap = new Map()
-            //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置，值是在老节点数组中的位置（从1开始数，0代表新增的）
+            //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置索引，值是在老节点数组中的位置索引（从1开始数，0代表新增的）
             //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
             const newIndexToOldIndexMap = new Array(toBePatched)
             for (let i = 0; i < toBePatched; i++) {
@@ -213,7 +215,7 @@ export function createRenderer(options) {
                     } else {
                         moved = true
                     }
-                    //存在则继续patch深层次对比新更新老两个元素（props，children...）
+                    //存在则继续patch深层次对比新老两个元素（props，children...），并且patched++
                     patch(prevChild, c2[newIndex], container, parentComponent, null)
                     patched++
                 }
@@ -305,13 +307,32 @@ export function createRenderer(options) {
 
     //处理组件类型的vnode
     function processComponent(n1, n2, container, parentComponent, anchor) {
-        //挂载虚拟节点
-        mountComponent(n2, container, parentComponent, anchor)
+        if (!n1) {
+            //挂载虚拟节点
+            mountComponent(n2, container, parentComponent, anchor)
+        } else {
+            updateComponent(n1, n2)
+        }
+    }
+
+    function updateComponent(n1, n2) {
+        //vnode上的component属性是在mountComponent时赋值的，n2是patch调用render方法生成的
+        //它上面component属性初始值为null，所以这里需要赋值
+        const instance = (n2.component = n1.component)
+        if(shouldUpdateComponent(n1,n2)){
+            //在instance上新建一个next用来存储要更新的vnode，也就是n2
+            instance.next = n2
+            instance.update()
+        }else{
+            n2.el = n1.el
+            instance.vnode = n2
+        }
     }
 
     function mountComponent(initialVnode, container, parentComponent, anchor) {
         //创建一个组件实例
-        const instance = createComponentInstance(initialVnode, parentComponent)
+        //同时把组件实例赋值给vnode上的component属性，在之后更新组件时会用到
+        const instance = (initialVnode.component = createComponentInstance(initialVnode, parentComponent))
         //初始化组件
         setupComponent(instance)
         //执行render方法
@@ -321,7 +342,8 @@ export function createRenderer(options) {
     function setupRenderEffect(instance, initialVnode, container, anchor) {
         //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
         //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
-        effect(() => {
+        //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
+        instance.update = effect(() => {
             //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
             if (!instance.isMounted) {
                 //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
@@ -335,12 +357,18 @@ export function createRenderer(options) {
                 initialVnode.el = subTree.el
                 instance.isMounted = true
             } else {
+                //拿到更新后的vnode(next)和更新前的vnode
+                const {next, vnode} = instance
+                if (next) {
+                    //vnode上的el属性只在mount的时候由subTree.el赋值，所以这里update的时候要给next.el赋值
+                    next.el = vnode.el
+                    updateComponentPreRender(instance,next)
+                }
                 const {proxy} = instance
                 const subTree = instance.render.call(proxy)
                 const prevSubTree = instance.subTree
                 instance.subTree = subTree
                 patch(prevSubTree, subTree, container, instance, anchor)
-                initialVnode.el = subTree.el
             }
 
         })
@@ -350,6 +378,14 @@ export function createRenderer(options) {
     return {
         createApp: createAppApi(render)
     }
+}
+
+function updateComponentPreRender(instance,nextVNode){
+    //更新instance上的虚拟节点，新的赋值给vnode属性，next属性置为null
+    instance.vnode = nextVNode
+    instance.next = null
+    //把更新后的props赋值给instance.props属性，这样this.$props就能拿到最新的props值了
+    instance.props = nextVNode.props
 }
 
 //求最长递增子序列的算法
