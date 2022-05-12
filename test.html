@@ -6,10 +6,10 @@
 </head>
 <body>
 
-<video playsinline="" autoplay="" muted="" loop="" poster="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/d0b93520a3362f0cbd922242da084748857f7a71.jpg">
-    <source src="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/577d864a2cc8e45659772d09698c1d60621f5d0d.webm" type="video/webm">
-    <source src="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/1448c6625638cd9514ce282ba9f29173fa5ff001.mp4" type="video/mp4">
-</video>
+<!--<video playsinline="" autoplay="" muted="" loop="" poster="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/d0b93520a3362f0cbd922242da084748857f7a71.jpg">-->
+<!--    <source src="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/577d864a2cc8e45659772d09698c1d60621f5d0d.webm" type="video/webm">-->
+<!--    <source src="https://media.st.dl.pinyuncloud.com/steamcommunity/public/images/items/1385730/1448c6625638cd9514ce282ba9f29173fa5ff001.mp4" type="video/mp4">-->
+<!--</video>-->
 <script>
     // class Foo{
     //     constructor(_val) {
@@ -42,7 +42,6 @@
     // run.bind(obj)()
 
 
-
     //通过call给一个函数绑定this
     // const obj2 = {
     //     foo:1
@@ -72,11 +71,25 @@
     // const b = a.bind(null,'test')
     // b('p1')
 
-    const obj = {a:{foo:1},b:2}
-    let {a} = obj
-    a = {foo:2}
-    // obj.a = {foo:2}
-    console.log(a,obj)
+    // const obj = {a:{foo:1},b:2}
+    // let {a} = obj
+    // a = {foo:2}
+    // // obj.a = {foo:2}
+    // console.log(a,obj)
+
+    //验证微任务的顺序
+    let a = 0
+    Promise.resolve().then(() => {
+        a = 1
+    })
+    console.log(a)
+    Promise.resolve().then(() => {
+        console.log(a)
+        a = 2
+    })
+    Promise.resolve().then(() => {
+        console.log(a)
+    })
 </script>
 
 </body>

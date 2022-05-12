@@ -5,7 +5,7 @@ import {Fragment, Text} from "./vnode";
 import {createAppApi} from "./createApp";
 import {effect} from "../reactivity/effect";
 import {shouldUpdateComponent} from "./componentUpdateUtils";
-import {queueJobs} from "./helpers/scheduler";
+import {queueJobs} from "./scheduler";
 
 export function createRenderer(options) {
     const {
