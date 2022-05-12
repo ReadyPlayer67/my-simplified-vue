@@ -5,6 +5,7 @@ import {Fragment, Text} from "./vnode";
 import {createAppApi} from "./createApp";
 import {effect} from "../reactivity/effect";
 import {shouldUpdateComponent} from "./componentUpdateUtils";
+import {queueJobs} from "./helpers/scheduler";
 
 export function createRenderer(options) {
     const {
@@ -22,6 +23,7 @@ export function createRenderer(options) {
 
     //n1代表旧的vnode，n2代表新的vnode
     function patch(n1, n2, container, parentComponent, anchor) {
+        console.log('patch')
         const {shapeFlag} = n2
         switch (n2.type) {
             case Fragment:
@@ -238,7 +240,7 @@ export function createRenderer(options) {
                     //如果j<0代表最长递增子序列是空，说明顺序全反了
                     //或者当前节点不在稳定递增的序列中，就需要移动
                     if (j < 0 || i !== increasingNewIndexSequence[j]) {
-                        console.log('移动位置')
+                        // console.log('移动位置')
                         hostInsert(nextChild.el, container, anchor)
                     } else {
                         j--
@@ -371,6 +373,11 @@ export function createRenderer(options) {
                 patch(prevSubTree, subTree, container, instance, anchor)
             }
 
+        },{
+            scheduler(){
+                console.log('update-scheduler')
+                queueJobs(instance.update)
+            }
         })
 
     }
