@@ -20,7 +20,7 @@ function queueFlush(){
     //因为微任务只需要创建一次，所以用标记避免创建重复的微任务
     if(isFlushPending) return
     isFlushPending = true
-    //利用微任务，promise.then会在所有同步代码执行完之后再去执行
+    //nextTick创建一个微任务，利用微任务，promise.then会在所有同步代码执行完之后再去执行
     //所以instance.update会在所有同步代码执行完之后再执行
     nextTick(flushJobs)
 }

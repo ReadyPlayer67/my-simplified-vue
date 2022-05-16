@@ -7,12 +7,12 @@ export const App = {
         const instance = getCurrentInstance()
         async function onClick() {
             for (let i = 0; i < 100; i++) {
-                console.log("update");
                 count.value = i;
             }
             console.log(instance)
             //通过nextTick拿到渲染之后的视图
             await nextTick()
+            //await之后的代码fn相当于Promise.then(fn)
             console.log(instance)
         }
 
