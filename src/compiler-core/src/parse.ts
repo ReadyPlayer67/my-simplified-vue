@@ -22,31 +22,48 @@ function parseChildren(context) {
             node = parseElement(context)
         }
     }
+    if (!node) {
+        node = parseText(context)
+    }
     nodes.push(node)
     return nodes
+}
+
+function parseText(context) {
+    const content = parseTextData(context, context.source.length)
+    return {
+        type: NodeTypes.TEXT,
+        content
+    }
+}
+
+function parseTextData(context, length) {
+    const content = context.source.slice(0, length)
+    advanceBy(context, length)
+    return content
 }
 
 function parseElement(context) {
     //处理<div>
     const element = parseTag(context, TagType.Start)
     //处理</div>闭合标签，保证推进
-    parseTag(context,TagType.End)
+    parseTag(context, TagType.End)
     return element
 }
 
 function parseTag(context, type: TagType) {
     //利用()实现分组捕获，这样在match[1]就能拿到tag内容
     const match: any = /^<\/?([a-z]*)/i.exec(context.source)
-    console.log('match:', match)
+    // console.log('match:', match)
     //match[1]就是匹配到的tag类型
     const tag = match[1]
     //match[0]是匹配的全部字符串，也就是<div，往前推进<div和>的字符长度
-    advanceBy(context,match[0].length)
-    advanceBy(context,1)
+    advanceBy(context, match[0].length)
+    advanceBy(context, 1)
     //用一个标记代表处理的是<div>还是</div>闭合标签，如果是闭合标签就不用返回ast节点
-    if(type === TagType.End) return
+    if (type === TagType.End) return
     return {
-        type:NodeTypes.ELEMENT,
+        type: NodeTypes.ELEMENT,
         tag
     }
 }
@@ -62,10 +79,10 @@ function parseInterpolation(context) {
     //通过closeIndex减掉'{{'的长度（因为已经推进了2个字符）获得content的长度
     const rawContentLength = closeIndex - openDelimiter.length
     //根据content长度截取context.source获取content
-    const rawContent = context.source.slice(0, rawContentLength)
+    const rawContent = parseTextData(context, rawContentLength)
     const content = rawContent.trim()
     //把已经处理过的内容删掉，继续往前推进处理后面的内容
-    advanceBy(context, rawContentLength + closeDelimiter.length)
+    advanceBy(context, closeDelimiter.length)
     return {
         type: NodeTypes.INTERPOLATION,
         content: {

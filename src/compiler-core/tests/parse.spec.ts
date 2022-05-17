@@ -26,5 +26,15 @@ describe('Parse', function () {
             })
         });
     });
+
+    describe('text', function () {
+        it('simple text', function () {
+            const ast = baseParse('some text')
+            expect(ast.children[0]).toStrictEqual({
+                type:NodeTypes.TEXT,
+                content:'some text'
+            })
+        });
+    });
 });
 
