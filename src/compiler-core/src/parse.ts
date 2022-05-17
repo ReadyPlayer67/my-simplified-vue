@@ -8,29 +8,47 @@ const enum TagType {
 //得到抽象语法树AST
 export function baseParse(content: string) {
     const context = createParserContext(content)
-    return createRoot(parseChildren(context))
+    return createRoot(parseChildren(context, ''))
 }
 
-function parseChildren(context) {
+function parseChildren(context, parentTag) {
     let nodes: any = []
-    let node
-    const s = context.source
-    if (s.startsWith('{{')) {
-        node = parseInterpolation(context)
-    } else if (s[0] === '<') {//如果是<开头，认为是一个element标签
-        if (/[a-z]/i.test(s[1])) {//<后面必须是字母
-            node = parseElement(context)
+    while (!isEnd(context, parentTag)) {
+        let node
+        const s = context.source
+        if (s.startsWith('{{')) {
+            node = parseInterpolation(context)
+        } else if (s[0] === '<') {//如果是<开头，认为是一个element标签
+            if (/[a-z]/i.test(s[1])) {//<后面必须是字母
+                node = parseElement(context)
+            }
         }
+        if (!node) {
+            node = parseText(context)
+        }
+        nodes.push(node)
     }
-    if (!node) {
-        node = parseText(context)
-    }
-    nodes.push(node)
     return nodes
 }
 
+function isEnd(context, parentTag) {
+    const s = context.source
+    //当source没有值或者遇到结束标签的时候，应当停止循环
+    //创建root AST时parentTag传的空，如果是空就不需要对闭合标签进行判断了
+    if (parentTag && s.startsWith(`</${parentTag}>`)) {
+        return true
+    }
+    return !s
+}
+
 function parseText(context) {
-    const content = parseTextData(context, context.source.length)
+    const endToken = '{{'
+    let endIndex = context.source.length
+    const index = context.source.indexOf(endToken)
+    if (index !== -1) {
+        endIndex = index
+    }
+    const content = parseTextData(context, endIndex)
     return {
         type: NodeTypes.TEXT,
         content
@@ -45,7 +63,10 @@ function parseTextData(context, length) {
 
 function parseElement(context) {
     //处理<div>
-    const element = parseTag(context, TagType.Start)
+    const element: any = parseTag(context, TagType.Start)
+    //在开始标签和闭合标签中间用parseChildren处理子节点内容
+    //把element标签名字传进去，这样在isEnd控制循环停止时就可以拿到闭合标签名
+    element.children = parseChildren(context, element.tag)
     //处理</div>闭合标签，保证推进
     parseTag(context, TagType.End)
     return element
