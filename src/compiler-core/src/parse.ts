@@ -8,19 +8,19 @@ const enum TagType {
 //得到抽象语法树AST
 export function baseParse(content: string) {
     const context = createParserContext(content)
-    return createRoot(parseChildren(context, ''))
+    return createRoot(parseChildren(context, []))
 }
 
-function parseChildren(context, parentTag) {
+function parseChildren(context, ancestors) {
     let nodes: any = []
-    while (!isEnd(context, parentTag)) {
+    while (!isEnd(context, ancestors)) {
         let node
         const s = context.source
         if (s.startsWith('{{')) {
             node = parseInterpolation(context)
         } else if (s[0] === '<') {//如果是<开头，认为是一个element标签
             if (/[a-z]/i.test(s[1])) {//<后面必须是字母
-                node = parseElement(context)
+                node = parseElement(context, ancestors)
             }
         }
         if (!node) {
@@ -31,22 +31,30 @@ function parseChildren(context, parentTag) {
     return nodes
 }
 
-function isEnd(context, parentTag) {
+function isEnd(context, ancestors) {
     const s = context.source
     //当source没有值或者遇到结束标签的时候，应当停止循环
-    //创建root AST时parentTag传的空，如果是空就不需要对闭合标签进行判断了
-    if (parentTag && s.startsWith(`</${parentTag}>`)) {
-        return true
+    if (s.startsWith('</')) {
+        //这里从后往前循环栈，因为如果标签是闭合的，头部标签一定是在栈顶的，这样循环有利于性能
+        for (let i = ancestors.length -1;i>=0;i--){
+            const tag = ancestors[i].tag
+            if(startsWithEndTagOpen(s,tag)){
+                return true
+            }
+        }
     }
     return !s
 }
 
 function parseText(context) {
-    const endToken = '{{'
+    const endTokens = ['</', '{{']
     let endIndex = context.source.length
-    const index = context.source.indexOf(endToken)
-    if (index !== -1) {
-        endIndex = index
+    for (let endToken of endTokens) {
+        const index = context.source.indexOf(endToken)
+        //如果读取到闭合标签或插值{{标签都需要停止读取，且要取到最小的索引位置
+        if (index !== -1 && endIndex > index) {
+            endIndex = index
+        }
     }
     const content = parseTextData(context, endIndex)
     return {
@@ -61,15 +69,29 @@ function parseTextData(context, length) {
     return content
 }
 
-function parseElement(context) {
-    //处理<div>
+function parseElement(context, ancestors) {
+    //处理<div>起始标签
     const element: any = parseTag(context, TagType.Start)
+    //使用一个栈ancestors记录已经处理过的头部element标签
+    ancestors.push(element)
     //在开始标签和闭合标签中间用parseChildren处理子节点内容
-    //把element标签名字传进去，这样在isEnd控制循环停止时就可以拿到闭合标签名
-    element.children = parseChildren(context, element.tag)
-    //处理</div>闭合标签，保证推进
-    parseTag(context, TagType.End)
+    element.children = parseChildren(context, ancestors)
+    //处理完子节点并且里面的标签都是闭合的，无问题，此时就把element从栈中弹出
+    ancestors.pop()
+    console.log('--------------', element.tag, context.source)
+    //这里要判断下闭合标签名称是否是上面处理的标签名称一致，否则说明标签没有闭合，抛出错误
+    if (startsWithEndTagOpen(context.source, element.tag)) {
+        //处理</div>闭合标签，保证推进
+        parseTag(context, TagType.End)
+    } else {
+        throw new Error(`缺少结束标签${element.tag}`)
+    }
     return element
+}
+
+//判断context.source下一段内容是不是tag的闭合标签
+function startsWithEndTagOpen(source, tag) {
+    return source.startsWith('</') && source.slice(2, tag.length + 2).toLowerCase() === tag.toLowerCase()
 }
 
 function parseTag(context, type: TagType) {
