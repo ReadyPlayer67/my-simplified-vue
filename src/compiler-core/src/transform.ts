@@ -1,7 +1,13 @@
-export function transform(root, options) {
+export function transform(root, options = {}) {
     //创建一个上下文存放root和options
     const context = createTransformContext(root, options)
     traverseNode(root, context)
+    //创建一个codegenNode作为生成render函数的入口节点
+    createCodegenNode(root)
+}
+
+function createCodegenNode(root){
+    root.codegenNode = root.children[0]
 }
 
 function createTransformContext(root, options) {
