@@ -1,7 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`codegen interpolation 1`] = `
+Object {
+  "code": "const { toDisplayString: _toDisplayString } = \\"Vue\\"
+return function render (_ctx, _cache) {return _toDisplayString(_ctx.message)}",
+}
+`;
+
 exports[`codegen string 1`] = `
 Object {
-  "code": "return function render (_ctx, _cache) {return 'hi'}",
+  "code": "
+return function render (_ctx, _cache) {return 'hi'}",
 }
 `;
