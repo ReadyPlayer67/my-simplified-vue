@@ -56,6 +56,9 @@ function genNode(node, context) {
         case NodeTypes.ELEMENT:
             genElement(node, context)
             break;
+        case NodeTypes.COMPOUND_EXPRESSION:
+            genCompoundExpression(node,context)
+            break;
         default:
             break;
     }
@@ -81,7 +84,16 @@ function genExpression(node, context) {
 
 function genElement(node, context) {
     const {push, helper} = context
-    const {tag} = node
+    const {tag, children} = node
     push(`${helper(CREATE_ELEMENT_VNODE)}(`)
-    push(`"${tag}")`)
+    push(`"${tag}" ,null, `)
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i]
+        genNode(child, context)
+    }
+    push(')')
+}
+
+function genCompoundExpression(node,context){
+
 }

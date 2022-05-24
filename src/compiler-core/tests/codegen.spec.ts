@@ -3,6 +3,7 @@ import {generate} from "../src/codegen";
 import {transform} from "../src/transform";
 import {transformExpression} from "../src/transforms/transformExpression";
 import {transformElement} from "../src/transforms/transformElement";
+import {transformText} from "../src/transforms/transformText";
 
 describe('codegen', function () {
     it('string', function () {
@@ -23,10 +24,11 @@ describe('codegen', function () {
     });
 
     it('element', function () {
-        const ast = baseParse('<div></div>')
+        const ast:any = baseParse('<div>hi,{{message}}</div>')
         transform(ast,{
-            nodeTransforms:[transformElement]
+            nodeTransforms:[transformElement,transformText]
         })
+        console.log('ast-----',ast.codegenNode.children)
         const code = generate(ast)
         expect(code).toMatchSnapshot()
     });
