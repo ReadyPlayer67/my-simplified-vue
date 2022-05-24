@@ -32,7 +32,7 @@ function traverseNode(node, context) {
     //通过插件机制将容易变动的代码抽离出去，由外部去实现
     //这样程序的扩展性就变得很强了，并且提高了程序的可测试性
     for (const transform of nodeTransforms) {
-        transform(node)
+        transform(node, context)
     }
     //根据节点类型给ast添加需要导入的模块helpers
     switch (node.type) {
