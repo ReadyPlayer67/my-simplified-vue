@@ -13,9 +13,9 @@ export function transform(root, options = {}) {
 function createCodegenNode(root) {
     //获取root下的第一个节点，如果是element类型，就把element的codegenNode作为root的入口
     const child = root.children[0]
-    if(child.type === NodeTypes.ELEMENT){
+    if (child.type === NodeTypes.ELEMENT) {
         root.codegenNode = child.codegenNode
-    }else{
+    } else {
         root.codegenNode = root.children[0]
     }
 }
@@ -35,10 +35,12 @@ function createTransformContext(root, options) {
 //利用递归对ast树进行深度优先遍历
 function traverseNode(node, context) {
     const {nodeTransforms} = context
+    let exitFns: any = []
     //通过插件机制将容易变动的代码抽离出去，由外部去实现
     //这样程序的扩展性就变得很强了，并且提高了程序的可测试性
     for (const transform of nodeTransforms) {
-        transform(node, context)
+        const onExit = transform(node, context)
+        if(onExit) exitFns.push(onExit)
     }
     //根据节点类型给ast添加需要导入的模块helpers
     switch (node.type) {
@@ -52,6 +54,10 @@ function traverseNode(node, context) {
             break;
         default:
             break;
+    }
+    let i = exitFns.length
+    while (i--) {
+        exitFns[i]()
     }
 }
 

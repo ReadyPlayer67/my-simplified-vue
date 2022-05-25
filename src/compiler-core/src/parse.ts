@@ -78,7 +78,7 @@ function parseElement(context, ancestors) {
     element.children = parseChildren(context, ancestors)
     //处理完子节点并且里面的标签都是闭合的，无问题，此时就把element从栈中弹出
     ancestors.pop()
-    console.log('--------------', element.tag, context.source)
+    // console.log('--------------', element.tag, context.source)
     //这里要判断下闭合标签名称是否是上面处理的标签名称一致，否则说明标签没有闭合，抛出错误
     if (startsWithEndTagOpen(context.source, element.tag)) {
         //处理</div>闭合标签，保证推进
