@@ -1,5 +1,6 @@
 import {NodeTypes} from "./ast";
 import {CREATE_ELEMENT_VNODE, helperNameMap, TO_DISPLAY_STRING} from "./runtimeHelpers";
+import {isString} from "../../shared";
 
 export function generate(ast) {
     const context = createCodegenContext()
@@ -87,13 +88,19 @@ function genElement(node, context) {
     const {tag, children} = node
     push(`${helper(CREATE_ELEMENT_VNODE)}(`)
     push(`"${tag}" ,null, `)
-    for (let i = 0; i < children.length; i++) {
-        const child = children[i]
-        genNode(child, context)
-    }
+    genNode(children,context)
     push(')')
 }
 
 function genCompoundExpression(node,context){
-
+    const {push} = context
+    const {children} = node
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i]
+        if(isString(child)){//符号+直接push
+            push(child)
+        }else{//文字类型节点
+            genNode(child, context)
+        }
+    }
 }

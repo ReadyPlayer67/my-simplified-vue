@@ -11,7 +11,13 @@ export function transform(root, options = {}) {
 }
 
 function createCodegenNode(root) {
-    root.codegenNode = root.children[0]
+    //获取root下的第一个节点，如果是element类型，就把element的codegenNode作为root的入口
+    const child = root.children[0]
+    if(child.type === NodeTypes.ELEMENT){
+        root.codegenNode = child.codegenNode
+    }else{
+        root.codegenNode = root.children[0]
+    }
 }
 
 function createTransformContext(root, options) {
