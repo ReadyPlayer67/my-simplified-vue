@@ -65,7 +65,13 @@ function handleSetupResult(instance, setupResult) {
 
 function finishComponentSetup(instance){
     const Component = instance.type
-    //给instance设置render，这里假设用户写的组件一定有render方法
+    //给instance设置render
+    //如果有compiler函数并且用户没有提供render方法而提供了template模板，就执行编译template为render函数
+    if(compiler && !Component.render){
+        if(Component.template){
+            Component.render = compiler(Component.template)
+        }
+    }
     instance.render = Component.render
 }
 
@@ -76,4 +82,10 @@ export function getCurrentInstance(){
 
 function setCurrentInstance(instance){
     currentInstance = instance
+}
+
+let compiler
+//暴露一个方法用来给编译函数compiler赋值
+export function registerRuntimeCompiler(_compiler){
+    compiler = _compiler
 }
