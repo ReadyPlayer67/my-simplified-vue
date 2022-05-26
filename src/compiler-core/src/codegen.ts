@@ -58,7 +58,7 @@ function genNode(node, context) {
             genElement(node, context)
             break;
         case NodeTypes.COMPOUND_EXPRESSION:
-            genCompoundExpression(node,context)
+            genCompoundExpression(node, context)
             break;
         default:
             break;
@@ -85,21 +85,39 @@ function genExpression(node, context) {
 
 function genElement(node, context) {
     const {push, helper} = context
-    const {tag, children} = node
+    const {tag, children, props} = node
     push(`${helper(CREATE_ELEMENT_VNODE)}(`)
-    push(`"${tag}" ,null, `)
-    genNode(children,context)
+    genNodeList(genNullable([tag, props, children]), context)
     push(')')
 }
 
-function genCompoundExpression(node,context){
+function genNullable(args) {
+    return args.map(arg => arg || 'null')
+}
+
+function genNodeList(nodes, context) {
+    const {push} = context
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i]
+        if (isString(node)) {
+            push(node)
+        } else {
+            genNode(node, context)
+        }
+        if (i < nodes.length - 1) {
+            push(', ')
+        }
+    }
+}
+
+function genCompoundExpression(node, context) {
     const {push} = context
     const {children} = node
     for (let i = 0; i < children.length; i++) {
         const child = children[i]
-        if(isString(child)){//符号+直接push
+        if (isString(child)) {//符号+直接push
             push(child)
-        }else{//文字类型节点
+        } else {//文字类型节点
             genNode(child, context)
         }
     }
