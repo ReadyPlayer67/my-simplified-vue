@@ -1,5 +1,6 @@
 import {reactive} from "../src/reactive";
 import {computed} from "../src/computed";
+import {vi} from 'vitest'
 
 describe('computed',function (){
     it('happy path', function () {
@@ -17,7 +18,7 @@ describe('computed',function (){
             foo:1
         })
         //因为之后要验证getter执行了几次，所以用jest.fn创建这个方法
-        const getter = jest.fn(() => {
+        const getter = vi.fn(() => {
             return value.foo
         })
         //创建一个computed cValue

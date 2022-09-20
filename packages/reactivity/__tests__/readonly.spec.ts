@@ -1,4 +1,5 @@
 import {isProxy, isReadonly, readonly} from "../src/reactive";
+import {vi} from "vitest";
 
 describe('readonly', () => {
     it('happy path', function () {
@@ -14,7 +15,7 @@ describe('readonly', () => {
 
     it('should warn when call set', function () {
         //使用mock测试技术，构造一个假的方法，然后验证他是否被调用
-        console.warn = jest.fn()
+        console.warn = vi.fn()
         const original = {foo: 1}
         const wrapper = readonly(original)
         wrapper.foo = 2
