@@ -1,8 +1,6 @@
 {
   "name": "my-simplified-vue",
   "version": "1.0.0",
-  "main": "lib/guide-mini-vue.cjs.js",
-  "module": "lib/guide-mini-vue.esm.js",
   "repository": "https://github.com/ReadyPlayer67/my-simplified-vue.git",
   "author": "liuqi <735611642@qq>",
   "license": "MIT",
