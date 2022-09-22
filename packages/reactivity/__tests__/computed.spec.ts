@@ -1,6 +1,6 @@
 import {reactive} from "../src/reactive";
 import {computed} from "../src/computed";
-import {vi} from 'vitest'
+import {vi,describe,expect,it} from "vitest";
 
 describe('computed',function (){
     it('happy path', function () {

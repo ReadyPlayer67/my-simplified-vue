@@ -38,7 +38,7 @@ function convert(val){
 }
 
 function trackRefValue(ref) {
-    //这边要加一个判断，因为如果只是获取value而没有设置effect，activeEffect是没有值的，会报错
+    //这边要加一个判断，因为如果只是get value而没有设置effect，activeEffect是undefined，会报错
     if (isTracking()) {
         trackEffects(ref.dep)
     }

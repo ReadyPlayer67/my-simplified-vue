@@ -1,5 +1,6 @@
 //先写一个单元测试测试创建reactive
 import {isProxy, isReactive, reactive} from "../src/reactive";
+import {vi,describe,expect,it} from "vitest";
 
 describe('reactive',() => {
     it('happy path', function () {

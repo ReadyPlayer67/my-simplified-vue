@@ -6,7 +6,7 @@ class ComputedRefImpl {
     private _value: any
     private _effect: ReactiveEffect;
     constructor(getter) {
-        //这里需要创建一个ReactiveEffect，否则在依赖发生变化触发trigger的时候targetMap是空，糊报错
+        //这里需要创建一个ReactiveEffect，否则在依赖发生变化触发trigger的时候targetMap是空，会报错
         this._effect = new ReactiveEffect(getter,() => {
             if(!this._dirty){
                 this._dirty = true

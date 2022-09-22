@@ -1,5 +1,5 @@
 import {isProxy, isReadonly, readonly} from "../src/reactive";
-import {vi} from "vitest";
+import {vi,describe,expect,it} from "vitest";
 
 describe('readonly', () => {
     it('happy path', function () {

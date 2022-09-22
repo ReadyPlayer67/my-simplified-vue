@@ -1,6 +1,7 @@
 import {isRef, proxyRefs, ref, unRef} from "../src/ref";
 import {effect} from "../src/effect";
 import {reactive} from "../src/reactive";
+import {describe,expect,it} from "vitest";
 
 describe('ref', function () {
     it('happy path', function () {
