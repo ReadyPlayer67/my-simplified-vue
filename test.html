@@ -78,17 +78,32 @@
     // console.log(a,obj)
 
     //验证微任务的顺序
-    let a = 0
-    Promise.resolve().then(() => {
-        a = 1
-    })
-    Promise.resolve().then(() => {
-        console.log(a)
-        a = 2
-    })
-    Promise.resolve().then(() => {
-        console.log(a)
-    })
+    // let a = 0
+    // Promise.resolve().then(() => {
+    //     a = 1
+    // })
+    // Promise.resolve().then(() => {
+    //     console.log(a)
+    //     a = 2
+    // })
+    // Promise.resolve().then(() => {
+    //     console.log(a)
+    // })
+    //延迟执行插件
+    const fnA = (arg) => {
+      return () => {
+        console.log('1.' + arg)
+      }
+    }
+    const fnB = (arg) => {
+      return () => {
+        console.log('2.' + arg)
+      }
+    }
+    const retA = fnA('abc')
+    const retB = fnB('efg')
+    retA()
+    retB()
 </script>
 
 </body>
