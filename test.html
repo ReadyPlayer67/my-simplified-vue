@@ -90,20 +90,34 @@
     //     console.log(a)
     // })
     //延迟执行插件
-    const fnA = (arg) => {
-      return () => {
-        console.log('1.' + arg)
+    // const fnA = (arg) => {
+    //   return () => {
+    //     console.log('1.' + arg)
+    //   }
+    // }
+    // const fnB = (arg) => {
+    //   return () => {
+    //     console.log('2.' + arg)
+    //   }
+    // }
+    // const retA = fnA('abc')
+    // const retB = fnB('efg')
+    // retA()
+    // retB()
+    const obj = {
+      foo:{
+        bar:{
+          test:1
+        }
       }
     }
-    const fnB = (arg) => {
-      return () => {
-        console.log('2.' + arg)
+    const p = new Proxy(obj,{
+      get(target, p, receiver) {
+        console.log('get')
+        return Reflect.get(target,p,receiver)
       }
-    }
-    const retA = fnA('abc')
-    const retB = fnB('efg')
-    retA()
-    retB()
+    })
+    console.log(p.foo.bar.test)
 </script>
 
 </body>

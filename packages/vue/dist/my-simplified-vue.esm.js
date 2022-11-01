@@ -94,7 +94,7 @@ class ReactiveEffect {
         this.scheduler = scheduler;
     }
     run() {
-        //执行run方法，其实是this._fn()的时候会触发收集依赖track，
+        //执行run方法，即this._fn()的时候会触发收集依赖track，
         // 所以在这里拦截，如果stop了(this.active === false)，就不执行activeEffect = this,避免收集依赖
         if (!this.active) {
             return this._fn();
@@ -171,7 +171,7 @@ const effect = (fn, option = {}) => {
     //用一个extend方法将option上的熟悉拷贝到_effect上
     extend(_effect, option);
     _effect.run();
-    //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，会报错
+    //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，执行this._fn()就会报错
     const runner = _effect.run.bind(_effect);
     //函数也是对象，可以添加属性，把effect挂载到runner上，用于之后执行stop
     runner.effect = _effect;
@@ -290,7 +290,7 @@ function convert(val) {
     return isObject(val) ? reactive(val) : val;
 }
 function trackRefValue(ref) {
-    //这边要加一个判断，因为如果只是获取value而没有设置effect，activeEffect是没有值的，会报错
+    //这边要加一个判断，因为如果只是get value而没有设置effect，activeEffect是undefined，会报错
     if (isTracking()) {
         trackEffects(ref.dep);
     }
@@ -368,6 +368,7 @@ function initSlots(instance, children) {
     }
 }
 function normalizeObjectSlots(children, slots) {
+    console.log(children);
     for (const key in children) {
         const value = children[key];
         //父组件上的具名插槽是Record<string,function>
@@ -981,11 +982,12 @@ function createElement(type) {
     return document.createElement(type);
 }
 function patchProp(el, key, preVal, nextVal) {
-    // console.log('patchProp------------')
+    //如果是on开头的，就绑定事件
     const isOn = (key) => /^on[A-Z]/.test(key);
     if (isOn(key)) {
         el.addEventListener(key.slice(2).toLowerCase(), nextVal);
     }
+    //否则就是普通的设置attribute
     if (nextVal === undefined || nextVal === null) {
         el.removeAttribute(key);
     }

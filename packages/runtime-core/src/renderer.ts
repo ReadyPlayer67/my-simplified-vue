@@ -140,11 +140,12 @@ export function createRenderer(options) {
         //新的比老的长 a b -> d c a b
         if (i > e1) {//e1指针移动到了i前面，说明老的节点都比对完了
             if (i <= e2) {//e2指针还在i的位置或后面，说明新的节点数组中还有没处理的节点，这些遗留的节点就是新增节点
-                //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入节点的下标
+                //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入锚点的下标
                 const nextPos = e2 + 1
-                //nextPos<c2.length说明e2对应的节点已经是尾部节点了，此时就不需要锚点了，直接在尾部追加
+                //nextPos>=c2.length说明e2对应的节点已经是尾部节点了，此时就不需要锚点了，直接在尾部追加
                 const anchor = nextPos < l2 ? c2[nextPos].el : null
                 while (i <= e2) {
+                    //调用patch方法新增节点
                     patch(null, c2[i], container, parentComponent, anchor)
                     i++
                 }
@@ -164,7 +165,7 @@ export function createRenderer(options) {
             const toBePatched = e2 - s2 + 1
             //已经对比过的节点数量
             let patched = 0
-            //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
+            //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系：{'c':3,'e':2}
             const keyToNewIndexMap = new Map()
             //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置索引，值是在老节点数组中的位置索引（从1开始数，0代表新增的）
             //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
@@ -177,21 +178,21 @@ export function createRenderer(options) {
             let moved = false
             //记录当前最大的newIndex，即遍历过程中遇到的最大索引值
             let maxNewIndexSoFar = 0
-            //遍历新节点数组，生成map影射
+            //遍历新节点数组，生成map映射
             for (let i = s2; i <= e2; i++) {
                 const nextChild = c2[i]
                 keyToNewIndexMap.set(nextChild.key, i)
             }
-            //遍历老节点数组，再去新节点数组中查找该节点是否存在
+            //遍历老节点数组变动部分，再去新节点数组中查找该节点的位置，从而填充newIndexToOldIndexMap
             for (let i = s1; i <= e1; i++) {
                 const prevChild = c1[i]
-                //如果已经比对移动过的数量超过需要对比的数量，说明不需要在比对了，直接删除 ced->ec
+                //如果已经对比过的节点数量超过需要对比的数量，说明不需要在比对了，直接删除 ced->ec
                 if (patched >= toBePatched) {
                     hostRemove(prevChild.el)
                     continue
                 }
                 let newIndex //老节点在新节点数组中的位置下标
-                //如果用户设置了key属性，可以直接通过key直接查找到新元素的位置
+                //如果用户设置了key属性，可以通过key直接查找到新元素的位置
                 if (prevChild.key !== null) {
                     newIndex = keyToNewIndexMap.get(prevChild.key)
                 } else {
@@ -205,7 +206,7 @@ export function createRenderer(options) {
                 }
                 //判断节点是否存在于新节点树中
                 if (newIndex === undefined) {
-                    //不存在删除
+                    //不存在就删除
                     hostRemove(c1[i].el)
                 } else {
                     //newIndexToOldIndexMap的下标是在变动部分（i~e2）的位置索引，所以newIndex要减去s2
@@ -217,17 +218,19 @@ export function createRenderer(options) {
                     } else {
                         moved = true
                     }
-                    //存在则继续patch深层次对比新老两个元素（props，children...），并且patched++
+                    //老节点存在于新节点数组中，则继续patch深层次对比新老两个元素（props，children...），并且patched++
                     patch(prevChild, c2[newIndex], container, parentComponent, null)
+                    //每对比完一个节点patched++
                     patched++
                 }
             }
             // console.log(newIndexToOldIndexMap)
-            //获取最长递增子序列[5,3,4] -> [1,2]
+            //获取最长递增子序列[5,3,4] -> [1,2]，如果moved为false，我们无需移动任何元素，自然也不需要计算最长递增子序列了
             const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : []
             // console.log(increasingNewIndexSequence)
             let j = increasingNewIndexSequence.length - 1
-            //这里使用反向循环，因为我们insertBefore插入元素需要后一个元素，后一个元素可能是需要移动或者新增的，这时候c2[nextIndex+1].el有可能是不存在的
+            //这里使用反向循环，因为我们insertBefore方法需要插入元素的后一个元素
+            //而后一个元素可能是需要移动或者新增的，这时候c2[nextIndex+1].el有可能是null
             for (let i = toBePatched - 1; i >= 0; i--) {
                 //nextIndex是节点在新节点数组中真实的位置索引
                 const nextIndex = i + s2
@@ -237,7 +240,7 @@ export function createRenderer(options) {
                 if (newIndexToOldIndexMap[i] === 0) {
                     patch(null, nextChild, container, parentComponent, anchor)
                 } else if (moved) {
-                    //如果j<0代表最长递增子序列是空，说明顺序全反了
+                    //如果j<0代表最长递增子序列是空，说明顺序完全颠倒了，所有节点都需要移动
                     //或者当前节点不在稳定递增的序列中，就需要移动
                     if (j < 0 || i !== increasingNewIndexSequence[j]) {
                         // console.log('移动位置')
@@ -322,8 +325,9 @@ export function createRenderer(options) {
         //它上面component属性初始值为null，所以这里需要赋值
         const instance = (n2.component = n1.component)
         if(shouldUpdateComponent(n1,n2)){
-            //在instance上新建一个next用来存储要更新的vnode，也就是n2
+            //在instance上新建一个next属性用来存储更新后的vnode，也就是n2
             instance.next = n2
+            //调用instance.update重新执行effect中的更新方法
             instance.update()
         }else{
             n2.el = n1.el

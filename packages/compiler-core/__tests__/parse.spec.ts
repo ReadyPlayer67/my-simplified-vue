@@ -1,5 +1,6 @@
 import {baseParse} from "../src/parse";
 import {NodeTypes} from "../src/ast";
+import {describe,test,expect,it} from "vitest";
 
 describe('Parse', function () {
     //测试插值转换AST语法树功能

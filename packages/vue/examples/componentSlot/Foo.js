@@ -14,6 +14,7 @@ export const Foo = {
         return h('div',{},[
             renderSlots(this.$slots,'header',{age}),
             foo,
-            renderSlots(this.$slots,'footer')])
+            renderSlots(this.$slots,'footer')
+        ])
     }
 }

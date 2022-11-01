@@ -6,11 +6,12 @@ function createElement(type){
 }
 
 function patchProp(el,key,preVal,nextVal){
-    // console.log('patchProp------------')
+    //如果是on开头的，就绑定事件
     const isOn = (key: string) => /^on[A-Z]/.test(key)
     if (isOn(key)) {
         el.addEventListener(key.slice(2).toLowerCase(), nextVal)
     }
+    //否则就是普通的设置attribute
     if(nextVal === undefined || nextVal === null){
         el.removeAttribute(key)
     }else{
