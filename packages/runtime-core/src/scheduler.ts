@@ -1,4 +1,5 @@
 const queue:any[] = []
+//创建一个存放在渲染前执行的回调的队列
 const activePreFlushCbs: any[] = []
 const p = Promise.resolve()
 //设置一个标记，代表队列是否在刷新，即微任务是否已经创建并推入到微任务队列中
@@ -17,8 +18,12 @@ export function nextTick(fn?){
     return fn ? p.then(fn) : p
 }
 
-export function queuePreFlushCb(cb){
-    activePreFlushCbs.push(cb)
+//定义一个queuePreFlushCb方法，当响应式数据发生变化时执行该方法
+//将副作用push到一个任务队列中，之后触发更新，在更新之前/之后执行队列中的任务
+export function queuePreFlushCb(job){
+    if(!activePreFlushCbs.includes(job)){
+        activePreFlushCbs.push(job)
+    }
     queueFlush()
 }
 
@@ -33,6 +38,7 @@ function queueFlush(){
 
 function flushJobs(){
     console.log('microtask...')
+    //在渲染前先遍历执行队列中的回调
     flushPreFlushCbs()
     let job
     //从前往后遍历queue，执行里面的job（模拟队列先进先出）
