@@ -1,4 +1,5 @@
 const queue:any[] = []
+const activePreFlushCbs: any[] = []
 const p = Promise.resolve()
 //设置一个标记，代表队列是否在刷新，即微任务是否已经创建并推入到微任务队列中
 let isFlushPending = false
@@ -11,9 +12,14 @@ export function queueJobs(job){
 
 //通过再创建一个微任务，新的微任务被推到微任务队列中
 //等待前一个微任务，也就是渲染视图执行完之后再执行，在这里就能拿到最新的视图了
-export function nextTick(fn){
+export function nextTick(fn?){
     //如果用户传入回调函数fn，就在promise.then之后执行fn，否则就返回promise，让用户await
     return fn ? p.then(fn) : p
+}
+
+export function queuePreFlushCb(cb){
+    activePreFlushCbs.push(cb)
+    queueFlush()
 }
 
 function queueFlush(){
@@ -27,6 +33,7 @@ function queueFlush(){
 
 function flushJobs(){
     console.log('microtask...')
+    flushPreFlushCbs()
     let job
     //从前往后遍历queue，执行里面的job（模拟队列先进先出）
     while (job = queue.shift()){
@@ -35,3 +42,10 @@ function flushJobs(){
     //最后执行了微任务以后将标记重置
     isFlushPending = false
 }
+
+function flushPreFlushCbs() {
+    for (let i = 0; i < activePreFlushCbs.length; i++) {
+        activePreFlushCbs[i]()
+    }
+}
+

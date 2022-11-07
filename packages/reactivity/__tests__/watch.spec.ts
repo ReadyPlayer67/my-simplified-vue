@@ -1,5 +1,7 @@
-import { describe } from "vitest";
+import { describe, it } from "vitest";
 
 describe('watch',() => {
-  
+  it('happy path',() => {
+    
+  })
 })
