@@ -1,7 +1,7 @@
 //effect单元测试
-import {reactive} from "../src/reactive";
-import {effect,stop} from "../src/effect";
-import {vi,describe,expect,it} from "vitest";
+import { reactive } from "../src/reactive";
+import { effect, stop } from "../src/effect";
+import { vi, describe, expect, it } from "vitest";
 
 describe('effect', () => {
     it('happy path', () => {
@@ -41,10 +41,10 @@ describe('effect', () => {
         const scheduler = vi.fn(() => {
             run = runner
         })
-        const obj = reactive({foo:1})
+        const obj = reactive({ foo: 1 })
         const runner = effect(() => {
             dummy = obj.foo
-        },{ scheduler })
+        }, { scheduler })
         //scheduler一开始不会被调用
         expect(scheduler).not.toHaveBeenCalled()
         expect(dummy).toBe(1)
@@ -61,7 +61,7 @@ describe('effect', () => {
         //实现一个stop方法，接收effect返回的runner作为参数，当执行stop方法后，停止响应式更新
         //当执行runner方法以后，重新启动响应式更新
         let dummy
-        const obj = reactive({prop:1})
+        const obj = reactive({ prop: 1 })
         const runner = effect(() => {
             dummy = obj.prop
         })
@@ -80,14 +80,30 @@ describe('effect', () => {
     it('onStop', function () {
         //实现一个onStop方法，和scheduler一样作为effect的第二个参数选项，每当stop时就执行一次onStop方法
         const obj = reactive({
-            foo:1
+            foo: 1
         })
         const onStop = vi.fn()
         let dummy
         const runner = effect(() => {
             dummy = obj.foo
-        },{onStop})
+        }, { onStop })
         stop(runner)
         expect(onStop).toBeCalledTimes(1)
     });
+
+    it('lazy', () => {
+        const user = reactive({
+            age: 10
+        })
+        let nextAge;
+        const runner = effect(() => {
+            nextAge = user.age + 1
+        },{
+            lazy: true
+        })
+        expect(nextAge).toBe(undefined)
+        runner()
+        user.age = 20
+        expect(nextAge).toBe(21)
+    })
 })

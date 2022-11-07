@@ -1,6 +1,7 @@
 import {extend} from "@my-simplified-vue/shared";
 
 type effectOptions = {
+    lazy?: boolean,
     scheduler?: Function;
     onStop?: Function
 };
@@ -96,11 +97,14 @@ export function triggerEffects (dep){
     }
 }
 
-export const effect = (fn:Function,option:effectOptions = {}) => {
+export const effect = (fn:Function,option:effectOptions = {lazy:false}) => {
     const _effect = new ReactiveEffect(fn,option.scheduler)
     //用一个extend方法将option上的熟悉拷贝到_effect上
     extend(_effect,option)
-    _effect.run()
+    //effect接收一个lazy选项，如果lazy=true则不立刻执行副作用
+    if(!option.lazy){
+        _effect.run()
+    }
     //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，执行this._fn()就会报错
     const runner: any = _effect.run.bind(_effect)
     //函数也是对象，可以添加属性，把effect挂载到runner上，用于之后执行stop

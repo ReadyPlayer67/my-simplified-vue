@@ -1,7 +1,7 @@
-import { reactive } from '@my-simplified-vue/reactivity'
+import { effect, reactive } from '@my-simplified-vue/reactivity'
 import { nextTick } from '../src/scheduler'
 import { vi } from 'vitest'
-import { watchEffect } from '../src/apiWatch'
+import { watch, watchEffect } from '../src/apiWatch'
 
 describe('api: watch', () => {
   it('effect', async () => {
@@ -29,8 +29,8 @@ describe('api: watch', () => {
     expect(dummy).toBe(0)
   })
 
-  it('cleanup registration (effetc)',async () => {
-    const state = reactive({count: 0}) 
+  it('cleanup registration (effetc)', async () => {
+    const state = reactive({ count: 0 })
     const cleanup = vi.fn()
     let dummy
     const stop: any = watchEffect((onCleanup) => {
@@ -44,5 +44,17 @@ describe('api: watch', () => {
     expect(dummy).toBe(1)
     stop()
     expect(cleanup).toHaveBeenCalledTimes(2)
-  })  
+  })
+
+  it('watch', () => {
+    const state = reactive({ count: 0 })
+    let dummy = 0
+    watch(state, () => {
+      dummy = state.count
+    })
+    //懒执行，所以一开始是0
+    expect(dummy).toBe(0)
+    state.count++
+    expect(dummy).toBe(1)
+  })
 })
