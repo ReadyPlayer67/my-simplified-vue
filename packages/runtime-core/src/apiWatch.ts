@@ -44,15 +44,19 @@ export const watch = (source, cb) => {
     getter = () => traverse(source)
   }
   let oldValue, newValue
-  effect(() => {
-    //在effect中执行getter方法，进行依赖收集
-    getter()
+  const runner = effect(() => {
+    //在effect中执行getter方法并返回执行结果，这样进行依赖收集的同时还能将返回结果赋值给newValue
+    return getter()
   }, {
+    lazy: true,
     scheduler() {
+      newValue = runner()
       //在scheduler中执行用户传入回调，就实现了在source发生变化时触发回调
-      cb()
+      cb(newValue, oldValue)
+      oldValue = newValue
     }
   })
+  oldValue = runner()
 }
 
 //定义一个traverse函数递归地读取对象上的每个属性，从而当任意属性发生变化时都能触发effect

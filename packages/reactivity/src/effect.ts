@@ -101,7 +101,7 @@ export const effect = (fn:Function,option:effectOptions = {lazy:false}) => {
     const _effect = new ReactiveEffect(fn,option.scheduler)
     //用一个extend方法将option上的熟悉拷贝到_effect上
     extend(_effect,option)
-    //effect接收一个lazy选项，如果lazy=true则不立刻执行副作用
+    //effect接收一个lazy选项，如果lazy为true则不立刻执行副作用
     if(!option.lazy){
         _effect.run()
     }

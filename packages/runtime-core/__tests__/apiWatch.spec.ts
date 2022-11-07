@@ -57,4 +57,14 @@ describe('api: watch', () => {
     state.count++
     expect(dummy).toBe(1)
   })
+
+  it('watch oldValue and newValue', () => {
+    const state = reactive({ count: 0 })
+    let dummy
+    watch(state, (newValue, oldValue) => {
+      dummy = [newValue.count, oldValue.count]
+    })
+    state.count++
+    expect(dummy).toMatchObject([1,0])
+  })
 })
