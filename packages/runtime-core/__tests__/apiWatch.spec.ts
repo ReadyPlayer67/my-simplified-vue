@@ -67,4 +67,25 @@ describe('api: watch', () => {
     state.count++
     expect(dummy).toMatchObject([1, 0])
   })
+
+  // it('watch oldValue and newValue2', () => {
+  //   const state = reactive({ count: 0 })
+  //   let dummy: any[] = []
+  //   watch(state, (newValue, oldValue) => {
+  //     dummy = [newValue.count, oldValue.count]
+  //   })
+  //   state.count++
+  //   expect(dummy).toMatchObject([1, 0])
+  // })
+
+  it('watch immediate', () => {
+    const state = reactive({ count: 0 })
+    let dummy: any[] = []
+    watch(() => state.count, (newValue, oldValue) => {
+      dummy = [newValue, oldValue]
+    },{immediate: true})
+    expect(dummy).toMatchObject([0, undefined])
+    state.count++
+    expect(dummy).toMatchObject([1, 0])
+  })
 })

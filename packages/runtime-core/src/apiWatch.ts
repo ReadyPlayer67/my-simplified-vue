@@ -33,7 +33,7 @@ export function watchEffect(source) {
   }
 }
 
-export const watch = (source, cb) => {
+export const watch = (source, cb, options: { immediate?: boolean } = {}) => {
   //source可以是一个响应式对象，也可以是一个函数
   let getter
   if (typeof source === 'function') {
@@ -44,19 +44,25 @@ export const watch = (source, cb) => {
     getter = () => traverse(source)
   }
   let oldValue, newValue
+  const job = () => {
+    newValue = runner()
+    //在scheduler中执行用户传入回调，就实现了在source发生变化时触发回调
+    cb(newValue, oldValue)
+    oldValue = newValue
+  }
   const runner = effect(() => {
     //在effect中执行getter方法并返回执行结果，这样进行依赖收集的同时还能将返回结果赋值给newValue
     return getter()
   }, {
     lazy: true,
-    scheduler() {
-      newValue = runner()
-      //在scheduler中执行用户传入回调，就实现了在source发生变化时触发回调
-      cb(newValue, oldValue)
-      oldValue = newValue
-    }
+    scheduler: job
   })
-  oldValue = runner()
+  //如果为立即执行的watch，就先执行一次job
+  if(options.immediate){
+    job()
+  }else{
+    oldValue = runner()
+  }
 }
 
 //定义一个traverse函数递归地读取对象上的每个属性，从而当任意属性发生变化时都能触发effect
