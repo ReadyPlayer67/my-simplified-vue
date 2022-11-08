@@ -48,12 +48,12 @@ describe('api: watch', () => {
 
   it('watch', () => {
     const state = reactive({ count: 0 })
-    let dummy = 0
+    let dummy = -1
     watch(state, () => {
       dummy = state.count
     })
-    //懒执行，所以一开始是0
-    expect(dummy).toBe(0)
+    //懒执行，所以一开始是-1
+    expect(dummy).toBe(-1)
     state.count++
     expect(dummy).toBe(1)
   })
