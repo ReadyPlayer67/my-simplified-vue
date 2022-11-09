@@ -106,4 +106,19 @@ describe('effect', () => {
         user.age = 20
         expect(nextAge).toBe(21)
     })
+
+    it('proxy has operation',() => {
+        const user = reactive({
+            age: 10
+        })
+        let dummy
+        effect(() => {
+           dummy = 'age' in user
+        })
+        expect(dummy).toBe(true)
+        delete user.age
+        expect(dummy).toBe(false)
+        user.age = 11
+        expect(dummy).toBe(true)
+    })
 })
