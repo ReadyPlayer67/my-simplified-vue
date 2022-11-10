@@ -7,6 +7,8 @@ type effectOptions = {
     onStop?: Function
 };
 
+export const ITERATE_KEY = Symbol('')
+
 let activeEffect //用一个全局变量表示当前get操作触发的effect
 let shouldTrack
 export class ReactiveEffect {
@@ -53,7 +55,7 @@ const cleanupEffect = (effect) => {
     effect.deps.length = 0
 }
 
-let targetMap: Map<any, Map<string, Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
+let targetMap: Map<any, Map<string | Symbol, Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
 //在get操作的是触发依赖收集操作，将ReactiveEffect实例收集到一个dep容器中
 export const track = (target, key) => {
     if (!isTracking()) return
@@ -84,9 +86,25 @@ export function isTracking() {
 }
 
 export const trigger = (target, key, type: TriggerOpTypes) => {
-    const dep: Set<ReactiveEffect> = targetMap.get(target)!.get(key) as Set<ReactiveEffect>
-    // TODO 根据type类型修改dep
-    triggerEffects(dep)
+    const depsMap = targetMap.get(target)
+    if (!depsMap) {
+        return
+    }
+    let deps: (Set<ReactiveEffect> | undefined)[] = []
+    const dep: Set<ReactiveEffect> = depsMap.get(key) as Set<ReactiveEffect>
+    deps.push(dep)
+    //如果是给对象添加/删除属性，会影响对象的遍历操作，需要额外触发遍历操作关联的副作用
+    if (type === TriggerOpTypes.ADD || type === TriggerOpTypes.DELETE) {
+        const iterateEffects = depsMap.get(ITERATE_KEY)
+        deps.push(iterateEffects)
+    }
+    const effects: ReactiveEffect[] = []
+    for (const dep of deps) {
+        if (dep) {
+          effects.push(...dep)
+        }
+      }
+    triggerEffects(new Set(effects))
 }
 
 export function triggerEffects(dep) {

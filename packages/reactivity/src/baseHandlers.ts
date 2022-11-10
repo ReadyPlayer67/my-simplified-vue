@@ -1,7 +1,7 @@
-import { track, trigger } from "./effect";
+import { ITERATE_KEY, track, trigger } from "./effect";
 import { reactive, ReactiveFlags, readonly } from "./reactive";
 import { extend, isObject } from "@my-simplified-vue/shared";
-import { TriggerOpTypes } from './operations'
+import { TrackOpTypes, TriggerOpTypes } from './operations'
 
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter()
@@ -37,7 +37,7 @@ function createGetter(isReadonly = false, shallow = false) {
 function createSetter() {
     return (target: any, key: string | symbol, value: any) => {
         //如果属性不存在，则说明是添加新属性，否则是设置已有属性
-        const type = Object.prototype.hasOwnProperty.call(target,key) ? TriggerOpTypes.SET : TriggerOpTypes.ADD
+        const type = Object.prototype.hasOwnProperty.call(target, key) ? TriggerOpTypes.SET : TriggerOpTypes.ADD
         //这里有个坑，要先执行反射set操作，再执行trigger，不然effect里拿到依赖的值还是原始值
         const res = Reflect.set(target, key, value)
         trigger(target, key, type)
@@ -61,11 +61,17 @@ function deleteProperty(target, key) {
     return res
 }
 
+function ownKeys(target, key) {
+    track(target, ITERATE_KEY)
+    return Reflect.ownKeys(target)
+}
+
 export const mutableHandler = {
     get,
     set,
     has,
-    deleteProperty
+    deleteProperty,
+    ownKeys
     //实际vue还会拦截has,deleteProperty,ownKeys这些操作，他们同样会触发依赖收集
 }
 
