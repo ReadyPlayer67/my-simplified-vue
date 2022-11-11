@@ -138,4 +138,22 @@ describe('effect', () => {
         delete numbers.num1
         expect(dummy).toBe(4)
       })
+
+      it('should observe array element change', () => {
+        let dummy
+        const arr = reactive(['foo'])
+        effect(() => (dummy = arr.length))
+        expect(dummy).toBe(1)
+        arr[1] = 'bar'
+        expect(dummy).toBe(2)
+      })
+
+      it('should observe array length change', () => {
+        let dummy
+        const arr = reactive(['foo'])
+        effect(() => (dummy = arr[0]))
+        expect(dummy).toBe('foo')
+        arr.length = 0
+        expect(dummy).toBe(undefined)
+      })
 })

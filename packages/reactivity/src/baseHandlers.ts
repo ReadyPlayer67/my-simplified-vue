@@ -19,6 +19,9 @@ function createGetter(isReadonly = false, shallow = false) {
             return isReadonly
         }
         const res = Reflect.get(target, key)
+        if (!isReadonly) {
+            track(target, key)
+        }
         //如果是shallowReadonly，就不需要做嵌套readonly转换了，直接return
         if (shallow) {
             return res
@@ -27,20 +30,20 @@ function createGetter(isReadonly = false, shallow = false) {
         if (isObject(res)) {
             return isReadonly ? readonly(res) : reactive(res)
         }
-        if (!isReadonly) {
-            track(target, key)
-        }
         return res
     }
 }
 
 function createSetter() {
     return (target: any, key: string | symbol, value: any) => {
-        //如果属性不存在，则说明是添加新属性，否则是设置已有属性
-        const type = Object.prototype.hasOwnProperty.call(target, key) ? TriggerOpTypes.SET : TriggerOpTypes.ADD
+        const type = Array.isArray(target)
+            //如果target是数组，检查被设置的索引值是否小于数组长度，如果是则视为SET操作，否则是ADD操作
+            ? Number(key) < target.length ? TriggerOpTypes.SET : TriggerOpTypes.ADD
+            //如果属性不存在，则说明是添加新属性，否则是设置已有属性
+            : Object.prototype.hasOwnProperty.call(target, key) ? TriggerOpTypes.SET : TriggerOpTypes.ADD
         //这里有个坑，要先执行反射set操作，再执行trigger，不然effect里拿到依赖的值还是原始值
         const res = Reflect.set(target, key, value)
-        trigger(target, key, type)
+        trigger(target, key, type, value)
         return res
     }
 }
@@ -56,7 +59,7 @@ function deleteProperty(target, key) {
     const res = Reflect.deleteProperty(target, key)
     //只有当被删除的属性时对象自己的属性并且删除成功时，才触发更新
     if (res && hadKey) {
-        trigger(target, key, TriggerOpTypes.DELETE)
+        trigger(target, key, TriggerOpTypes.DELETE, undefined)
     }
     return res
 }

@@ -55,7 +55,7 @@ const cleanupEffect = (effect) => {
     effect.deps.length = 0
 }
 
-let targetMap: Map<any, Map<string | Symbol, Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
+let targetMap: Map<any, Map<any, Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
 //在get操作的是触发依赖收集操作，将ReactiveEffect实例收集到一个dep容器中
 export const track = (target, key) => {
     if (!isTracking()) return
@@ -85,7 +85,7 @@ export function isTracking() {
     return shouldTrack && activeEffect !== undefined
 }
 
-export const trigger = (target, key, type: TriggerOpTypes) => {
+export const trigger = (target, key, type: TriggerOpTypes, newValue: unknown) => {
     const depsMap = targetMap.get(target)
     if (!depsMap) {
         return
@@ -93,17 +93,35 @@ export const trigger = (target, key, type: TriggerOpTypes) => {
     let deps: (Set<ReactiveEffect> | undefined)[] = []
     const dep: Set<ReactiveEffect> = depsMap.get(key) as Set<ReactiveEffect>
     deps.push(dep)
-    //如果是给对象添加/删除属性，会影响对象的遍历操作，需要额外触发遍历操作关联的副作用
-    if (type === TriggerOpTypes.ADD || type === TriggerOpTypes.DELETE) {
-        const iterateEffects = depsMap.get(ITERATE_KEY)
-        deps.push(iterateEffects)
+    if (Array.isArray(target) && key === 'length') {
+        //如果target是数组并且修改了数组的长度，对于索引大于等于新length的元素
+        //需要把他们关联的副作用函数取出来并执行
+        const newLength = Number(newValue)
+        depsMap.forEach((dep, key) => {
+            if (key === 'length' || key >= newLength) {
+                deps.push(dep)
+            }
+        })
+    } else {
+        //如果是给对象添加/删除属性，会影响对象的遍历操作，需要额外触发遍历操作关联的副作用
+        if (type === TriggerOpTypes.ADD) {
+            //如果target是数组且操作类型为ADD，应该取出并执行那些与length相关的副作用函数
+            if (Array.isArray(target)) {
+                deps.push(depsMap.get('length'))
+            } else {
+                deps.push(depsMap.get(ITERATE_KEY))
+            }
+        } else if (type === TriggerOpTypes.DELETE) {
+            deps.push(depsMap.get(ITERATE_KEY))
+        }
     }
+
     const effects: ReactiveEffect[] = []
     for (const dep of deps) {
         if (dep) {
-          effects.push(...dep)
+            effects.push(...dep)
         }
-      }
+    }
     triggerEffects(new Set(effects))
 }
 
