@@ -65,7 +65,9 @@ function deleteProperty(target, key) {
 }
 
 function ownKeys(target, key) {
-    track(target, ITERATE_KEY)
+    //如果target是数组，修改数组的length会影响for...in循环的结果，需要触发对应的副作用
+    //所以以length为key把for...in相关的副作用收集起来
+    track(target, Array.isArray(target) ? 'length' : ITERATE_KEY)
     return Reflect.ownKeys(target)
 }
 
