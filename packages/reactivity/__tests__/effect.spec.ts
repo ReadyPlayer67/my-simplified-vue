@@ -156,4 +156,11 @@ describe('effect', () => {
         arr.length = 0
         expect(dummy).toBe(undefined)
       })
+
+      it('should rewrite Array.prototype.includes/indexOf/lastIndexOf',() => {
+        const obj = {}
+        const arr = reactive([obj])
+        const ret = arr.includes(obj)
+        expect(ret).toBe(true)
+      })
 })

@@ -3,6 +3,25 @@ import { reactive, ReactiveFlags, readonly } from "./reactive";
 import { extend, isObject } from "@my-simplified-vue/shared";
 import { TrackOpTypes, TriggerOpTypes } from './operations'
 
+//重写数组的部分方法
+const arrayInstrumentations = createArrayInstrumentations()
+
+function createArrayInstrumentations() {
+    const instrumentations: Record<string, Function> = {}
+        ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
+            const originMethod = Array.prototype[key]
+            instrumentations[key] = function (...args) {
+                console.log(this)
+                let res = originMethod.apply(this, args)
+                if (res === -1 || res === false) {
+                    res = originMethod.apply(this.raw, args)
+                }
+                return res
+            }
+        })
+    return instrumentations
+}
+
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter()
 const set = createSetter()
@@ -11,14 +30,17 @@ const shallowReadonlyGet = createGetter(true, true)
 
 //使用高阶函数的技巧，这样就可以通过传参区分isReadonly
 function createGetter(isReadonly = false, shallow = false) {
-    return (target: any, key: string | symbol) => {
+    return (target: any, key: string | symbol, receiver) => {
         //通过proxy拦截的get操作，判断获取的key，如果是ReactiveFlags.IS_REACTIVE，就return isReadonly
         if (key === ReactiveFlags.IS_REACTIVE) {
             return !isReadonly
         } else if (key === ReactiveFlags.IS_READONLY) {
             return isReadonly
         }
-        const res = Reflect.get(target, key)
+        if (Array.isArray(target) && arrayInstrumentations.hasOwnProperty(key)) {
+            return Reflect.get(arrayInstrumentations, key, receiver)
+        }
+        const res = Reflect.get(target, key, receiver)
         if (!isReadonly) {
             track(target, key)
         }
