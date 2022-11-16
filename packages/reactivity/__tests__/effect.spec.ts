@@ -163,4 +163,15 @@ describe('effect', () => {
         const ret = arr.includes(obj)
         expect(ret).toBe(true)
       })
+
+      it('should rewrite Array.prototype.push/unshift/pop/shift',() => {
+        const arr = reactive([])
+        effect(() => {
+            arr.push(1)
+        })
+        effect(() => {
+            arr.push(2)
+        })
+        expect(arr.length).toBe(2)
+      })
 })

@@ -1,4 +1,4 @@
-import { ITERATE_KEY, track, trigger } from "./effect";
+import { enableTracking, ITERATE_KEY, pauseTracking, track, trigger } from "./effect";
 import { reactive, ReactiveFlags, readonly } from "./reactive";
 import { extend, isObject } from "@my-simplified-vue/shared";
 import { TrackOpTypes, TriggerOpTypes } from './operations'
@@ -8,16 +8,25 @@ const arrayInstrumentations = createArrayInstrumentations()
 
 function createArrayInstrumentations() {
     const instrumentations: Record<string, Function> = {}
-        ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
-            const originMethod = Array.prototype[key]
-            instrumentations[key] = function (...args) {
-                let res = originMethod.apply(this, args)
-                if (res === -1 || res === false) {
-                    res = originMethod.apply(this[ReactiveFlags.RAW], args)
-                }
-                return res
+    ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
+        const originMethod = Array.prototype[key]
+        instrumentations[key] = function (...args: unknown[]) {
+            let res = originMethod.apply(this, args)
+            if (res === -1 || res === false) {
+                res = originMethod.apply(this[ReactiveFlags.RAW], args)
             }
-        })
+            return res
+        }
+    })
+    ;['push', 'pop', 'shift', 'unshift', 'splice'].forEach(key => {
+        const originMethod = Array.prototype[key]
+        instrumentations[key] = function (...args: unknown[]) {
+            pauseTracking()
+            const res = originMethod.apply(this, args)
+            enableTracking()
+            return res
+        }
+    })
     return instrumentations
 }
 

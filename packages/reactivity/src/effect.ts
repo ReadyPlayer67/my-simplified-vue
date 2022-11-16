@@ -153,3 +153,11 @@ export const effect = (fn: Function, option: effectOptions = { lazy: false }) =>
 export const stop = (runner) => {
     runner.effect.stop()
 }
+
+export function pauseTracking() {
+    shouldTrack = false
+  }
+  
+  export function enableTracking() {
+    shouldTrack = true
+  }
