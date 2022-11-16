@@ -11,10 +11,9 @@ function createArrayInstrumentations() {
         ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
             const originMethod = Array.prototype[key]
             instrumentations[key] = function (...args) {
-                console.log(this)
                 let res = originMethod.apply(this, args)
                 if (res === -1 || res === false) {
-                    res = originMethod.apply(this.raw, args)
+                    res = originMethod.apply(this[ReactiveFlags.RAW], args)
                 }
                 return res
             }
@@ -36,6 +35,8 @@ function createGetter(isReadonly = false, shallow = false) {
             return !isReadonly
         } else if (key === ReactiveFlags.IS_READONLY) {
             return isReadonly
+        } else if (key === ReactiveFlags.RAW) {
+            return target
         }
         if (Array.isArray(target) && arrayInstrumentations.hasOwnProperty(key)) {
             return Reflect.get(arrayInstrumentations, key, receiver)
