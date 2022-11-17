@@ -7,15 +7,15 @@ export enum ReactiveFlags {
 }
 
 export const reactive = (raw: any) => {
-    return createActiveObject(raw, mutableHandler)
+    return createReactiveObject(raw, mutableHandler)
 }
 
 export const readonly = (raw: any) => {
-    return createActiveObject(raw, readonlyHandler)
+    return createReactiveObject(raw, readonlyHandler)
 }
 
 export const shallowReadonly = (raw: any) => {
-    return createActiveObject(raw, shallowReadonlyHandler)
+    return createReactiveObject(raw, shallowReadonlyHandler)
 }
 
 export const isReactive = (value) => {
@@ -33,7 +33,7 @@ export const isProxy = (value) => {
 }
 
 //用一个工具函数将new Proxy这样的底层代码封装起来
-function createActiveObject(raw: any, baseHandler) {
+function createReactiveObject(raw: any, baseHandler) {
     return new Proxy(raw, baseHandler)
 }
 

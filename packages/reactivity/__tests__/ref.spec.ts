@@ -1,7 +1,7 @@
-import {isRef, proxyRefs, ref, unRef} from "../src/ref";
-import {effect} from "../src/effect";
-import {reactive} from "../src/reactive";
-import {describe,expect,it} from "vitest";
+import { isRef, proxyRefs, ref, toRef, toRefs, unRef } from "../src/ref";
+import { effect } from "../src/effect";
+import { reactive } from "../src/reactive";
+import { describe, expect, it } from "vitest";
 
 describe('ref', function () {
     it('happy path', function () {
@@ -61,8 +61,8 @@ describe('ref', function () {
     it('proxyRefs', function () {
         //实现proxyRefs，其实就是将ref解包，在template里面不用.value去拿到ref的值
         const user = {
-            age:ref(10),
-            name:'aaa'
+            age: ref(10),
+            name: 'aaa'
         }
         const proxyUser = proxyRefs(user)
         expect(user.age.value).toBe(10)
@@ -76,4 +76,38 @@ describe('ref', function () {
         expect(proxyUser.age).toBe(30)
         expect(user.age.value).toBe(30)
     });
+
+    it('toRef', function () {
+        const a = reactive({
+            x: 1
+        })
+        const x = toRef(a, 'x')
+        expect(isRef(x)).toBe(true)
+        expect(x.value).toBe(1)
+
+        a.x = 2
+        expect(x.value).toBe(2)
+        x.value = 3
+        expect(a.x).toBe(3)
+    })
+
+    it('toRefs', function () {
+        const a = reactive({
+            x: 1,
+            y: 2
+        })
+        const { x, y } = toRefs(a)
+        expect(isRef(x)).toBe(true)
+        expect(isRef(y)).toBe(true)
+        expect(x.value).toBe(1)
+        expect(y.value).toBe(2)
+        a.x = 2
+        a.y = 3
+        expect(x.value).toBe(2)
+        expect(y.value).toBe(3)
+        x.value = 3
+        y.value = 4
+        expect(a.x).toBe(3)
+        expect(a.y).toBe(4)
+    })
 });
