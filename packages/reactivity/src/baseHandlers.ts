@@ -1,5 +1,5 @@
 import { enableTracking, ITERATE_KEY, pauseTracking, track, trigger } from "./effect";
-import { reactive, ReactiveFlags, readonly } from "./reactive";
+import { reactive, ReactiveFlags, readonly, toRaw } from "./reactive";
 import { extend, isObject } from "@my-simplified-vue/shared";
 import { TrackOpTypes, TriggerOpTypes } from './operations'
 
@@ -11,6 +11,8 @@ function createArrayInstrumentations() {
     ;['includes', 'indexOf', 'lastIndexOf'].forEach(key => {
         const originMethod = Array.prototype[key]
         instrumentations[key] = function (...args: unknown[]) {
+            //因为用户传入的查找对象可能是原始对象，也可能是响应式对象
+            //所以我们先去响应式数组中查找，如果找不到再去原始数组中查找
             let res = originMethod.apply(this, args)
             if (res === -1 || res === false) {
                 res = originMethod.apply(this[ReactiveFlags.RAW], args)
@@ -18,11 +20,11 @@ function createArrayInstrumentations() {
             return res
         }
     })
-    ;['push', 'pop', 'shift', 'unshift', 'splice'].forEach(key => {
-        const originMethod = Array.prototype[key]
+    ;(['push', 'pop', 'shift', 'unshift', 'splice'] as const).forEach(key => {
         instrumentations[key] = function (...args: unknown[]) {
             pauseTracking()
-            const res = originMethod.apply(this, args)
+            //执行
+            const res = toRaw(this)[key].apply(this,args)
             enableTracking()
             return res
         }

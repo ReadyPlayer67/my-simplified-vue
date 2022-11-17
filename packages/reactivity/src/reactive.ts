@@ -1,4 +1,4 @@
-import {mutableHandler, readonlyHandler, shallowReadonlyHandler} from "./baseHandlers";
+import { mutableHandler, readonlyHandler, shallowReadonlyHandler } from "./baseHandlers";
 
 export enum ReactiveFlags {
     IS_REACTIVE = '__v_isReactive',
@@ -14,7 +14,7 @@ export const readonly = (raw: any) => {
     return createActiveObject(raw, readonlyHandler)
 }
 
-export const shallowReadonly = (raw:any) => {
+export const shallowReadonly = (raw: any) => {
     return createActiveObject(raw, shallowReadonlyHandler)
 }
 
@@ -35,4 +35,9 @@ export const isProxy = (value) => {
 //用一个工具函数将new Proxy这样的底层代码封装起来
 function createActiveObject(raw: any, baseHandler) {
     return new Proxy(raw, baseHandler)
+}
+
+export function toRaw<T>(observed: T): T {
+    const raw = observed && observed[ReactiveFlags.RAW]
+    return raw ? toRaw(raw) : observed
 }
