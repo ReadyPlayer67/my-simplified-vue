@@ -3,9 +3,11 @@ import { TriggerOpTypes } from './operations'
 
 type effectOptions = {
   lazy?: boolean
-  scheduler?: Function
+  scheduler?: EffectScheduler
   onStop?: Function
 }
+
+export type EffectScheduler = (...args: any[]) => any
 
 export const ITERATE_KEY = Symbol('')
 
@@ -13,12 +15,12 @@ let activeEffect //用一个全局变量表示当前get操作触发的effect
 let shouldTrack
 export class ReactiveEffect {
   private _fn: any
-  public scheduler: Function | undefined
+  public scheduler: EffectScheduler | undefined
   deps = []
   active = true
   onStop?: Function
   //scheduler? 表示该参数是一个可选参数
-  constructor(fn, scheduler?: Function | undefined) {
+  constructor(fn, scheduler?: EffectScheduler | undefined) {
     this._fn = fn
     this.scheduler = scheduler
   }
