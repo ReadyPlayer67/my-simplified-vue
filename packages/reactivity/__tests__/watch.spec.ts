@@ -1,7 +1,5 @@
-import { describe, it } from "vitest";
+import { describe, it } from 'vitest'
 
-describe('watch',() => {
-  it('happy path',() => {
-    
-  })
+describe('watch', () => {
+  it('happy path', () => {})
 })
