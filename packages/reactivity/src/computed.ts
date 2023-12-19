@@ -12,12 +12,14 @@ class ComputedRefImpl {
     this._effect = new ReactiveEffect(getter, () => {
       if (!this._dirty) {
         this._dirty = true
+        //当computed依赖的变量发生变化，触发依赖，执行effect
         triggerRefValue(this)
       }
     })
   }
 
   get value() {
+    //获取computed的value时，触发依赖收集，将effect添加到当前computed的dep中
     trackRefValue(this)
     //如果_dirty为true，表示依赖发生变化，需要重新执行getter获取结果赋值给_value
     //并且将_dirty设置成false，下次来的时候读的就是缓存的_value了
