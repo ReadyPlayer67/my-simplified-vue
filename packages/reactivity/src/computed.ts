@@ -1,6 +1,8 @@
 import { ReactiveEffect } from './effect'
+import { trackRefValue, triggerRefValue } from './ref'
 
 class ComputedRefImpl {
+  public dep?: Set<ReactiveEffect> = new Set()
   //设置一个变量控制是否读取缓存
   private _dirty: boolean = true
   private _value: any
@@ -10,11 +12,13 @@ class ComputedRefImpl {
     this._effect = new ReactiveEffect(getter, () => {
       if (!this._dirty) {
         this._dirty = true
+        triggerRefValue(this)
       }
     })
   }
 
   get value() {
+    trackRefValue(this)
     //如果_dirty为true，表示依赖发生变化，需要重新执行getter获取结果赋值给_value
     //并且将_dirty设置成false，下次来的时候读的就是缓存的_value了
     if (this._dirty) {

@@ -58,7 +58,7 @@ const cleanupEffect = (effect) => {
 
 let targetMap: Map<any, Map<any, Set<ReactiveEffect>>> = new Map() //每一个reactive对象里的每一个key都需要有一个dep容器存放effect，当key的value变化时触发effect，实现响应式
 //在get操作的是触发依赖收集操作，将ReactiveEffect实例收集到一个dep容器中
-export const track = (target, key) => {
+export const track = (target: object, key: unknown) => {
   if (!isTracking()) return
   let depsMap = targetMap.get(target)
   if (!depsMap) {
@@ -87,8 +87,8 @@ export function isTracking() {
 }
 
 export const trigger = (
-  target,
-  key,
+  target: object,
+  key: unknown,
   type: TriggerOpTypes,
   newValue: unknown
 ) => {

@@ -28,7 +28,7 @@ class RefImpl<T> {
     if (hasChange(this._rawVal, newValue)) {
       this._rawVal = newValue
       this._val = convert(newValue)
-      triggerEffects(this.dep)
+      triggerRefValue(this)
     }
   }
 }
@@ -53,11 +53,15 @@ function convert(val) {
   return isObject(val) ? reactive(val) : val
 }
 
-function trackRefValue(ref) {
+export function trackRefValue(ref) {
   //这边要加一个判断，因为如果只是get value而没有设置effect，activeEffect是undefined，会报错
   if (isTracking()) {
     trackEffects(ref.dep)
   }
+}
+
+export function triggerRefValue(ref) {
+  triggerEffects(ref.dep)
 }
 
 export function ref<T>(val) {

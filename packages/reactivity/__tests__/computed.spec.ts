@@ -37,4 +37,15 @@ describe('computed', function () {
     cValue.value
     expect(getter).toHaveBeenCalledTimes(2)
   })
+
+  it('should work when chained', () => {
+    const value = reactive({ foo: 0 })
+    const c1 = computed(() => value.foo)
+    const c2 = computed(() => c1.value + 1)
+    expect(c2.value).toBe(1)
+    expect(c1.value).toBe(0)
+    value.foo++
+    expect(c2.value).toBe(2)
+    expect(c1.value).toBe(1)
+  })
 })
