@@ -75,7 +75,7 @@ function createGetter(isReadonly = false, shallow = false) {
 }
 
 function createSetter() {
-  return (target: any, key: string | symbol, value: any) => {
+  return (target: any, key: string | symbol, value: any, receiver: object) => {
     const type = Array.isArray(target)
       ? //如果target是数组，检查被设置的索引值是否小于数组长度，如果是则视为SET操作，否则是ADD操作
         Number(key) < target.length
@@ -87,7 +87,9 @@ function createSetter() {
       : TriggerOpTypes.ADD
     //这里有个坑，要先执行反射set操作，再执行trigger，不然effect里拿到依赖的值还是原始值
     const res = Reflect.set(target, key, value)
-    trigger(target, key, type, value)
+    if (target === toRaw(receiver)) {
+      trigger(target, key, type, value)
+    }
     return res
   }
 }
