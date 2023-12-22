@@ -133,6 +133,10 @@ export const readonlyHandler = {
     console.warn(`key ${key as string} set失败，readonly对象无法被set`)
     return true
   },
+  deleteProperty(target: any, key: string | symbol): boolean {
+    console.warn(`key ${key as string} delete失败，readonly对象无法被delete`)
+    return true
+  },
 }
 
 export const shallowReadonlyHandler = extend({}, readonlyHandler, {
