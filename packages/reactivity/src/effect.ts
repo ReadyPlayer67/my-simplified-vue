@@ -12,7 +12,7 @@ export type EffectScheduler = (...args: any[]) => any
 export const ITERATE_KEY = Symbol('')
 
 let activeEffect //用一个全局变量表示当前get操作触发的effect
-let shouldTrack
+let shouldTrack: boolean
 export class ReactiveEffect {
   private _fn: any
   public scheduler: EffectScheduler | undefined

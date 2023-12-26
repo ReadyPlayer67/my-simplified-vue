@@ -9,17 +9,26 @@ export enum ReactiveFlags {
   IS_READONLY = '__v_isReadonly',
   RAW = '__v_raw',
 }
+export interface Target {
+  // [ReactiveFlags.SKIP]?: boolean
+  [ReactiveFlags.IS_REACTIVE]?: boolean
+  [ReactiveFlags.IS_READONLY]?: boolean
+  // [ReactiveFlags.IS_SHALLOW]?: boolean
+  [ReactiveFlags.RAW]?: any
+}
+//定义一个 Map 实例，存储原始对象到代理对象的映射
+export const reactiveMap = new WeakMap<Target, any>()
 
-export const reactive = (raw: any) => {
-  return createReactiveObject(raw, mutableHandler)
+export const reactive = (raw: object) => {
+  return createReactiveObject(raw, mutableHandler, reactiveMap)
 }
 
 export const readonly = (raw: any) => {
-  return createReactiveObject(raw, readonlyHandler)
+  return createReactiveObject(raw, readonlyHandler, reactiveMap)
 }
 
 export const shallowReadonly = (raw: any) => {
-  return createReactiveObject(raw, shallowReadonlyHandler)
+  return createReactiveObject(raw, shallowReadonlyHandler, reactiveMap)
 }
 
 export const isReactive = (value) => {
@@ -37,8 +46,19 @@ export const isProxy = (value) => {
 }
 
 //用一个工具函数将new Proxy这样的底层代码封装起来
-function createReactiveObject(raw: any, baseHandler) {
-  return new Proxy(raw, baseHandler)
+function createReactiveObject(
+  target: Target,
+  baseHandler,
+  proxyMap: WeakMap<Target, any>
+) {
+  //如果proxyMap中存在target对应的代理对象，直接返回
+  const existingProxy = proxyMap.get(target)
+  if (existingProxy) {
+    return existingProxy
+  }
+  const proxy = new Proxy(target, baseHandler)
+  proxyMap.set(target, proxy)
+  return proxy
 }
 
 export function toRaw<T>(observed: T): T {
