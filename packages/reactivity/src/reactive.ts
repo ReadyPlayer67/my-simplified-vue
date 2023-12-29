@@ -62,6 +62,7 @@ function createReactiveObject(
 }
 
 export function toRaw<T>(observed: T): T {
+  //递归地去查找响应式对象observed的原始值属性ReactiveFlags.RAW，将每一个属性都改为原始值
   const raw = observed && observed[ReactiveFlags.RAW]
   return raw ? toRaw(raw) : observed
 }
