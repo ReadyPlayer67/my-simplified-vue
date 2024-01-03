@@ -1,5 +1,5 @@
-import { ReactiveEffect, effect } from "../../reactivity/src/effect"
-import { queuePreFlushCb } from "./scheduler"
+import { ReactiveEffect, effect } from '../../reactivity/src/effect'
+import { queuePreFlushCb } from './scheduler'
 
 export function watchEffect(source) {
   function job() {
@@ -50,17 +50,20 @@ export const watch = (source, cb, options: { immediate?: boolean } = {}) => {
     cb(newValue, oldValue)
     oldValue = newValue
   }
-  const runner = effect(() => {
-    //在effect中执行getter方法并返回执行结果，这样进行依赖收集的同时还能将返回结果赋值给newValue
-    return getter()
-  }, {
-    lazy: true,
-    scheduler: job
-  })
+  const runner = effect(
+    () => {
+      //在effect中执行getter方法并返回执行结果，这样进行依赖收集的同时还能将返回结果赋值给newValue
+      return getter()
+    },
+    {
+      lazy: true,
+      scheduler: job,
+    }
+  )
   //如果为立即执行的watch，就先执行一次job
-  if(options.immediate){
+  if (options.immediate) {
     job()
-  }else{
+  } else {
     oldValue = runner()
   }
 }
