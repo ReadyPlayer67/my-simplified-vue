@@ -15,9 +15,10 @@ export const App = {
                 onClick() {
                     console.log('click')
                 },
-                onMousedown(){
-                    console.log('mousedown')
-                }
+                onMousedown:[
+                    () => console.log('mousedown1'),
+                    () => console.log('mousedown2')
+                ]
             },
             [
                 h('p', {class: 'red'}, this.msg),

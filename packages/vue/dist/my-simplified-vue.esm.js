@@ -1,6 +1,16 @@
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 const Fragment = Symbol('Fragment');
 const Text = Symbol('Text');
+// export interface VNode {
+//   type: any
+//   props: (VNodeProps & ExtraProps) | null
+//   key: string | number | symbol | null
+//   ref: VNodeNormalizedRef | null
+//   children: VNodeNormalizedChildren
+//   component: ComponentInternalInstance | null
+//   shapeFlag: number
+//   el: Record<string, any>
+// }
 function createVNode(type, props, children) {
     const vnode = {
         type,
@@ -9,7 +19,7 @@ function createVNode(type, props, children) {
         component: null,
         key: props && props.key,
         shapeFlag: getShapeFlag(type),
-        el: null
+        el: null,
     };
     if (typeof children === 'string') {
         //vnode.shapeFlag = vnode.shapeFlag | ShapeFlags.TEXT_CHILDREN 可以简写为
@@ -83,6 +93,7 @@ const toHandlerKey = (str) => {
     return str ? 'on' + capitalize(camelize(str)) : '';
 };
 
+const ITERATE_KEY = Symbol('');
 let activeEffect; //用一个全局变量表示当前get操作触发的effect
 let shouldTrack;
 class ReactiveEffect {
@@ -152,9 +163,46 @@ function isTracking() {
     //在happy path单测中,只触发了get但没有执行effect，所以这时候activeEffect是undefined
     return shouldTrack && activeEffect !== undefined;
 }
-const trigger = (target, key) => {
-    const dep = targetMap.get(target).get(key);
-    triggerEffects(dep);
+const trigger = (target, key, type, newValue) => {
+    const depsMap = targetMap.get(target);
+    if (!depsMap) {
+        return;
+    }
+    let deps = [];
+    const dep = depsMap.get(key);
+    deps.push(dep);
+    if (Array.isArray(target) && key === 'length') {
+        //如果target是数组并且修改了数组的长度，对于索引大于等于新length的元素
+        //需要把他们关联的副作用函数取出来并执行
+        const newLength = Number(newValue);
+        depsMap.forEach((dep, key) => {
+            if (key === 'length' || key >= newLength) {
+                deps.push(dep);
+            }
+        });
+    }
+    else {
+        //如果是给对象添加/删除属性，会影响对象的遍历操作，需要额外触发遍历操作关联的副作用
+        if (type === "add" /* TriggerOpTypes.ADD */) {
+            //如果target是数组且操作类型为ADD，应该取出并执行那些与length相关的副作用函数
+            if (Array.isArray(target)) {
+                deps.push(depsMap.get('length'));
+            }
+            else {
+                deps.push(depsMap.get(ITERATE_KEY));
+            }
+        }
+        else if (type === "delete" /* TriggerOpTypes.DELETE */) {
+            deps.push(depsMap.get(ITERATE_KEY));
+        }
+    }
+    const effects = [];
+    for (const dep of deps) {
+        if (dep) {
+            effects.push(...dep);
+        }
+    }
+    triggerEffects(new Set(effects));
 };
 function triggerEffects(dep) {
     for (const effect of dep) {
@@ -166,18 +214,54 @@ function triggerEffects(dep) {
         }
     }
 }
-const effect = (fn, option = {}) => {
+const effect = (fn, option = { lazy: false }) => {
     const _effect = new ReactiveEffect(fn, option.scheduler);
     //用一个extend方法将option上的熟悉拷贝到_effect上
     extend(_effect, option);
-    _effect.run();
+    //effect接收一个lazy选项，如果lazy为true则不立刻执行副作用
+    if (!option.lazy) {
+        _effect.run();
+    }
     //这里注意要return的是将this绑定为_effect的run方法，不然在单元测试的上下文环境里this是undefined，执行this._fn()就会报错
     const runner = _effect.run.bind(_effect);
     //函数也是对象，可以添加属性，把effect挂载到runner上，用于之后执行stop
     runner.effect = _effect;
     return runner;
 };
+function pauseTracking() {
+    shouldTrack = false;
+}
+function enableTracking() {
+    shouldTrack = true;
+}
 
+//重写数组的部分方法
+const arrayInstrumentations = createArrayInstrumentations();
+function createArrayInstrumentations() {
+    const instrumentations = {};
+    ['includes', 'indexOf', 'lastIndexOf'].forEach((key) => {
+        const originMethod = Array.prototype[key];
+        instrumentations[key] = function (...args) {
+            //因为用户传入的查找对象可能是原始对象，也可能是响应式对象
+            //所以我们先去响应式数组中查找，如果找不到再去原始数组中查找
+            let res = originMethod.apply(this, args);
+            if (res === -1 || res === false) {
+                res = originMethod.apply(this[ReactiveFlags.RAW], args);
+            }
+            return res;
+        };
+    });
+    ['push', 'pop', 'shift', 'unshift', 'splice'].forEach((key) => {
+        instrumentations[key] = function (...args) {
+            pauseTracking();
+            //执行
+            const res = toRaw(this)[key].apply(this, args);
+            enableTracking();
+            return res;
+        };
+    });
+    return instrumentations;
+}
 //将get和set缓存下来，这样就不用每次new Proxy()的时候就调用一次createGetter和createSetter
 const get = createGetter();
 const set = createSetter();
@@ -185,7 +269,7 @@ const readonlyGet = createGetter(true);
 const shallowReadonlyGet = createGetter(true, true);
 //使用高阶函数的技巧，这样就可以通过传参区分isReadonly
 function createGetter(isReadonly = false, shallow = false) {
-    return (target, key) => {
+    return (target, key, receiver) => {
         //通过proxy拦截的get操作，判断获取的key，如果是ReactiveFlags.IS_REACTIVE，就return isReadonly
         if (key === ReactiveFlags.IS_REACTIVE) {
             return !isReadonly;
@@ -193,7 +277,16 @@ function createGetter(isReadonly = false, shallow = false) {
         else if (key === ReactiveFlags.IS_READONLY) {
             return isReadonly;
         }
-        const res = Reflect.get(target, key);
+        else if (key === ReactiveFlags.RAW) {
+            return target;
+        }
+        if (Array.isArray(target) && arrayInstrumentations.hasOwnProperty(key)) {
+            return Reflect.get(arrayInstrumentations, key, receiver);
+        }
+        const res = Reflect.get(target, key, receiver);
+        if (!isReadonly) {
+            track(target, key);
+        }
         //如果是shallowReadonly，就不需要做嵌套readonly转换了，直接return
         if (shallow) {
             return res;
@@ -202,23 +295,55 @@ function createGetter(isReadonly = false, shallow = false) {
         if (isObject(res)) {
             return isReadonly ? readonly(res) : reactive(res);
         }
-        if (!isReadonly) {
-            track(target, key);
-        }
         return res;
     };
 }
 function createSetter() {
-    return (target, key, value) => {
+    return (target, key, value, receiver) => {
+        const type = Array.isArray(target)
+            ? //如果target是数组，检查被设置的索引值是否小于数组长度，如果是则视为SET操作，否则是ADD操作
+                Number(key) < target.length
+                    ? "set" /* TriggerOpTypes.SET */
+                    : "add" /* TriggerOpTypes.ADD */
+            : //如果属性不存在，则说明是添加新属性，否则是设置已有属性
+                Object.prototype.hasOwnProperty.call(target, key)
+                    ? "set" /* TriggerOpTypes.SET */
+                    : "add" /* TriggerOpTypes.ADD */;
         //这里有个坑，要先执行反射set操作，再执行trigger，不然effect里拿到依赖的值还是原始值
         const res = Reflect.set(target, key, value);
-        trigger(target, key);
+        if (target === toRaw(receiver)) {
+            trigger(target, key, type, value);
+        }
         return res;
     };
 }
+function has(target, key) {
+    const res = Reflect.has(target, key);
+    track(target, key);
+    return res;
+}
+function deleteProperty(target, key) {
+    const hadKey = Object.prototype.hasOwnProperty.call(target, key);
+    const res = Reflect.deleteProperty(target, key);
+    //只有当被删除的属性时对象自己的属性并且删除成功时，才触发更新
+    if (res && hadKey) {
+        trigger(target, key, "delete" /* TriggerOpTypes.DELETE */, undefined);
+    }
+    return res;
+}
+function ownKeys(target, key) {
+    //如果target是数组，修改数组的length会影响for...in循环的结果，需要触发对应的副作用
+    //所以以length为key把for...in相关的副作用收集起来
+    track(target, Array.isArray(target) ? 'length' : ITERATE_KEY);
+    return Reflect.ownKeys(target);
+}
 const mutableHandler = {
     get,
-    set
+    set,
+    has,
+    deleteProperty,
+    ownKeys,
+    //实际vue还会拦截has,deleteProperty,ownKeys这些操作，他们同样会触发依赖收集
 };
 const readonlyHandler = {
     get: readonlyGet,
@@ -226,40 +351,59 @@ const readonlyHandler = {
     set(target, key, value) {
         console.warn(`key ${key} set失败，readonly对象无法被set`);
         return true;
-    }
+    },
+    deleteProperty(target, key) {
+        console.warn(`key ${key} delete失败，readonly对象无法被delete`);
+        return true;
+    },
 };
 const shallowReadonlyHandler = extend({}, readonlyHandler, {
-    get: shallowReadonlyGet
+    get: shallowReadonlyGet,
 });
 
 var ReactiveFlags;
 (function (ReactiveFlags) {
     ReactiveFlags["IS_REACTIVE"] = "__v_isReactive";
     ReactiveFlags["IS_READONLY"] = "__v_isReadonly";
+    ReactiveFlags["RAW"] = "__v_raw";
 })(ReactiveFlags || (ReactiveFlags = {}));
+//定义一个 Map 实例，存储原始对象到代理对象的映射
+const reactiveMap = new WeakMap();
 const reactive = (raw) => {
-    return createActiveObject(raw, mutableHandler);
+    return createReactiveObject(raw, mutableHandler, reactiveMap);
 };
 const readonly = (raw) => {
-    return createActiveObject(raw, readonlyHandler);
+    return createReactiveObject(raw, readonlyHandler, reactiveMap);
 };
 const shallowReadonly = (raw) => {
-    return createActiveObject(raw, shallowReadonlyHandler);
+    return createReactiveObject(raw, shallowReadonlyHandler, reactiveMap);
 };
 const isReactive = (value) => {
     //因为在proxy拦截的get操作里可以拿到isReadonly，所以只要触发get就可以判断isReactive，isReadonly同理
     //这里将结果转换为Boolean值，这样undefined就为false，就能通过这个方法检测原始对象
-    return !!value[ReactiveFlags.IS_REACTIVE];
+    return !!(value && value[ReactiveFlags.IS_REACTIVE]);
 };
 const isReadonly = (value) => {
-    return !!value[ReactiveFlags.IS_READONLY];
+    return !!(value && value[ReactiveFlags.IS_READONLY]);
 };
 const isProxy = (value) => {
     return isReactive(value) || isReadonly(value);
 };
 //用一个工具函数将new Proxy这样的底层代码封装起来
-function createActiveObject(raw, baseHandler) {
-    return new Proxy(raw, baseHandler);
+function createReactiveObject(target, baseHandler, proxyMap) {
+    //如果proxyMap中存在target对应的代理对象，直接返回
+    const existingProxy = proxyMap.get(target);
+    if (existingProxy) {
+        return existingProxy;
+    }
+    const proxy = new Proxy(target, baseHandler);
+    proxyMap.set(target, proxy);
+    return proxy;
+}
+function toRaw(observed) {
+    //递归地去查找响应式对象observed的原始值属性ReactiveFlags.RAW，将每一个属性都改为原始值
+    const raw = observed && observed[ReactiveFlags.RAW];
+    return raw ? toRaw(raw) : observed;
 }
 
 //ref接收的都是基本类型的变量，无法用proxy做代理
@@ -282,7 +426,7 @@ class RefImpl {
         if (hasChange(this._rawVal, newValue)) {
             this._rawVal = newValue;
             this._val = convert(newValue);
-            triggerEffects(this.dep);
+            triggerRefValue(this);
         }
     }
 }
@@ -294,6 +438,9 @@ function trackRefValue(ref) {
     if (isTracking()) {
         trackEffects(ref.dep);
     }
+}
+function triggerRefValue(ref) {
+    triggerEffects(ref.dep);
 }
 function ref(val) {
     return new RefImpl(val);
@@ -317,12 +464,12 @@ function proxyRefs(objectWithRef) {
             //拦截set，一般情况下都是直接执行Reflect.set，直接替换
             //有一种特殊情况，如果这个属性的值是一个ref，set的值不是ref，是一个普通变量，就需要把这个普通变量赋给ref的value
             if (isRef(target[key]) && !isRef(value)) {
-                return target[key].value = value;
+                return (target[key].value = value);
             }
             else {
                 return Reflect.set(target, key, value);
             }
-        }
+        },
     });
 }
 
@@ -330,7 +477,7 @@ function proxyRefs(objectWithRef) {
 const publicPropertiesMap = {
     $el: (i) => i.vnode.el,
     $slots: (i) => i.slots,
-    $props: (i) => i.props
+    $props: (i) => i.props,
 };
 const PublicInstanceProxyHandlers = {
     //通过给target对象新增一个_属性来实现传值
@@ -347,7 +494,7 @@ const PublicInstanceProxyHandlers = {
         if (publicGetter) {
             return publicGetter(instance);
         }
-    }
+    },
 };
 
 const initProps = (instance, raw) => {
@@ -368,7 +515,6 @@ function initSlots(instance, children) {
     }
 }
 function normalizeObjectSlots(children, slots) {
-    console.log(children);
     for (const key in children) {
         const value = children[key];
         //父组件上的具名插槽是Record<string,function>
@@ -396,7 +542,7 @@ function createComponentInstance(vnode, parent) {
         subTree: {},
         //将parent.provides赋值给当前instance的provides实现跨组件传值
         provides: parent ? parent.provides : {},
-        parent
+        parent,
     };
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -420,7 +566,7 @@ function setupStatefulComponent(instance) {
     if (setup) {
         setCurrentInstance(instance);
         const setupResult = setup(shallowReadonly(instance.props), {
-            emit: instance.emit
+            emit: instance.emit,
         });
         setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
@@ -497,7 +643,7 @@ const inject = (key, defaultValue) => {
 function createAppApi(render) {
     //接收一个根组件
     return function createApp(rootComponent) {
-        //返回一个对象，对象中有一个render方法
+        //返回一个对象，对象中有一个mount方法
         return {
             //render方法接收一个根容器
             mount(rootContainer) {
@@ -505,7 +651,7 @@ function createAppApi(render) {
                 //所有的逻辑都会基于vnode做处理
                 const vnode = createVNode(rootComponent);
                 render(vnode, rootContainer);
-            }
+            },
         };
     };
 }
@@ -523,6 +669,8 @@ function shouldUpdateComponent(preVNode, nextVNode) {
 }
 
 const queue = [];
+//创建一个存放在渲染前执行的回调的队列
+const activePreFlushCbs = [];
 const p = Promise.resolve();
 //设置一个标记，代表队列是否在刷新，即微任务是否已经创建并推入到微任务队列中
 let isFlushPending = false;
@@ -549,17 +697,24 @@ function queueFlush() {
 }
 function flushJobs() {
     console.log('microtask...');
+    //在渲染前先遍历执行队列中的回调
+    flushPreFlushCbs();
     let job;
     //从前往后遍历queue，执行里面的job（模拟队列先进先出）
-    while (job = queue.shift()) {
+    while ((job = queue.shift())) {
         job && job();
     }
     //最后执行了微任务以后将标记重置
     isFlushPending = false;
 }
+function flushPreFlushCbs() {
+    for (let i = 0; i < activePreFlushCbs.length; i++) {
+        activePreFlushCbs[i]();
+    }
+}
 
 function createRenderer(options) {
-    const { createElement: hostCreateElement, patchProp: hostPatchProp, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText } = options;
+    const { createElement: hostCreateElement, patchProp: hostPatchProp, insert: hostInsert, remove: hostRemove, setElementText: hostSetElementText, } = options;
     function render(vnode, container) {
         //入口parentComponent是null
         patch(null, vnode, container, null, null);
@@ -599,7 +754,8 @@ function createRenderer(options) {
     }
     //处理element类型的vnode
     function processElement(n1, n2, container, parentComponent, anchor) {
-        if (!n1) { //如果n1不存在，是初始化
+        if (!n1) {
+            //如果n1不存在，是初始化
             mountElement(n2, container, parentComponent, anchor);
         }
         else {
@@ -680,19 +836,23 @@ function createRenderer(options) {
         // console.log('e1: ' + e1)
         // console.log('e2: ' + e2)
         //新的比老的长 a b -> d c a b
-        if (i > e1) { //e1指针移动到了i前面，说明老的节点都比对完了
-            if (i <= e2) { //e2指针还在i的位置或后面，说明新的节点数组中还有没处理的节点，这些遗留的节点就是新增节点
-                //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入节点的下标
+        if (i > e1) {
+            //e1指针移动到了i前面，说明老的节点都比对完了
+            if (i <= e2) {
+                //e2指针还在i的位置或后面，说明新的节点数组中还有没处理的节点，这些遗留的节点就是新增节点
+                //i~e2是新增的节点下标范围，如果是在前面新增节点，e2+1就是insertBefore插入锚点的下标
                 const nextPos = e2 + 1;
-                //nextPos<c2.length说明e2对应的节点已经是尾部节点了，此时就不需要锚点了，直接在尾部追加
+                //nextPos>=c2.length说明e2对应的节点已经是尾部节点了，此时就不需要锚点了，直接在尾部追加
                 const anchor = nextPos < l2 ? c2[nextPos].el : null;
                 while (i <= e2) {
+                    //调用patch方法新增节点
                     patch(null, c2[i], container, parentComponent, anchor);
                     i++;
                 }
             }
         }
-        else if (i > e2) { //老的比新的长 a b c -> a b
+        else if (i > e2) {
+            //老的比新的长 a b c -> a b
             while (i <= e1) {
                 //直接remove不存在的老节点
                 hostRemove(c1[i].el);
@@ -708,7 +868,7 @@ function createRenderer(options) {
             const toBePatched = e2 - s2 + 1;
             //已经对比过的节点数量
             let patched = 0;
-            //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系{'c':3,'e':2}
+            //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系：{'c':3,'e':2}
             const keyToNewIndexMap = new Map();
             //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置索引，值是在老节点数组中的位置索引（从1开始数，0代表新增的）
             //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
@@ -721,21 +881,21 @@ function createRenderer(options) {
             let moved = false;
             //记录当前最大的newIndex，即遍历过程中遇到的最大索引值
             let maxNewIndexSoFar = 0;
-            //遍历新节点数组，生成map影射
+            //遍历新节点数组，生成map映射
             for (let i = s2; i <= e2; i++) {
                 const nextChild = c2[i];
                 keyToNewIndexMap.set(nextChild.key, i);
             }
-            //遍历老节点数组，再去新节点数组中查找该节点是否存在
+            //遍历老节点数组变动部分，再去新节点数组中查找该节点的位置，从而填充newIndexToOldIndexMap
             for (let i = s1; i <= e1; i++) {
                 const prevChild = c1[i];
-                //如果已经比对移动过的数量超过需要对比的数量，说明不需要在比对了，直接删除 ced->ec
+                //如果已经对比过的节点数量超过需要对比的数量，说明不需要在比对了，直接删除 ced->ec
                 if (patched >= toBePatched) {
                     hostRemove(prevChild.el);
                     continue;
                 }
                 let newIndex; //老节点在新节点数组中的位置下标
-                //如果用户设置了key属性，可以直接通过key直接查找到新元素的位置
+                //如果用户设置了key属性，可以通过key直接查找到新元素的位置
                 if (prevChild.key !== null) {
                     newIndex = keyToNewIndexMap.get(prevChild.key);
                 }
@@ -750,7 +910,7 @@ function createRenderer(options) {
                 }
                 //判断节点是否存在于新节点树中
                 if (newIndex === undefined) {
-                    //不存在删除
+                    //不存在就删除
                     hostRemove(c1[i].el);
                 }
                 else {
@@ -764,17 +924,21 @@ function createRenderer(options) {
                     else {
                         moved = true;
                     }
-                    //存在则继续patch深层次对比新老两个元素（props，children...），并且patched++
+                    //老节点存在于新节点数组中，则继续patch深层次对比新老两个元素（props，children...），并且patched++
                     patch(prevChild, c2[newIndex], container, parentComponent, null);
+                    //每对比完一个节点patched++
                     patched++;
                 }
             }
             // console.log(newIndexToOldIndexMap)
-            //获取最长递增子序列[5,3,4] -> [1,2]
-            const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : [];
+            //获取最长递增子序列[5,3,4] -> [1,2]，如果moved为false，我们无需移动任何元素，自然也不需要计算最长递增子序列了
+            const increasingNewIndexSequence = moved
+                ? getSequence(newIndexToOldIndexMap)
+                : [];
             // console.log(increasingNewIndexSequence)
             let j = increasingNewIndexSequence.length - 1;
-            //这里使用反向循环，因为我们insertBefore插入元素需要后一个元素，后一个元素可能是需要移动或者新增的，这时候c2[nextIndex+1].el有可能是不存在的
+            //这里使用反向循环，因为我们insertBefore方法需要插入元素的后一个元素
+            //而后一个元素可能是需要移动或者新增的，这时候c2[nextIndex+1].el有可能是null
             for (let i = toBePatched - 1; i >= 0; i--) {
                 //nextIndex是节点在新节点数组中真实的位置索引
                 const nextIndex = i + s2;
@@ -785,7 +949,7 @@ function createRenderer(options) {
                     patch(null, nextChild, container, parentComponent, anchor);
                 }
                 else if (moved) {
-                    //如果j<0代表最长递增子序列是空，说明顺序全反了
+                    //如果j<0代表最长递增子序列是空，说明顺序完全颠倒了，所有节点都需要移动
                     //或者当前节点不在稳定递增的序列中，就需要移动
                     if (j < 0 || i !== increasingNewIndexSequence[j]) {
                         // console.log('移动位置')
@@ -829,7 +993,7 @@ function createRenderer(options) {
         const { type, props, children, shapeFlag } = vnode;
         //使用连续赋值，把el赋值给vnode.el
         //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
-        const el = vnode.el = hostCreateElement(type);
+        const el = (vnode.el = hostCreateElement(type));
         for (const key in props) {
             const val = props[key];
             hostPatchProp(el, key, null, val);
@@ -847,7 +1011,7 @@ function createRenderer(options) {
         hostInsert(el, container, anchor);
     }
     function mountChildren(children, container, parentComponent, anchor) {
-        children.forEach(vnode => {
+        children.forEach((vnode) => {
             patch(null, vnode, container, parentComponent, anchor);
         });
     }
@@ -866,8 +1030,9 @@ function createRenderer(options) {
         //它上面component属性初始值为null，所以这里需要赋值
         const instance = (n2.component = n1.component);
         if (shouldUpdateComponent(n1, n2)) {
-            //在instance上新建一个next用来存储要更新的vnode，也就是n2
+            //在instance上新建一个next属性用来存储更新后的vnode，也就是n2
             instance.next = n2;
+            //调用instance.update重新执行effect中的更新方法
             instance.update();
         }
         else {
@@ -920,11 +1085,11 @@ function createRenderer(options) {
             scheduler() {
                 console.log('update-scheduler');
                 queueJobs(instance.update);
-            }
+            },
         });
     }
     return {
-        createApp: createAppApi(render)
+        createApp: createAppApi(render),
     };
 }
 function updateComponentPreRender(instance, nextVNode) {
@@ -977,15 +1142,52 @@ function getSequence(arr) {
     return result;
 }
 
+const veiKey = Symbol('_vei');
+//定义一个处理事件的方法
+function patchEvent(el, key, prevVal, nextVal) {
+    const invokers = el[veiKey] || (el[veiKey] = {});
+    const existingInvoker = invokers[key];
+    if (nextVal && existingInvoker) {
+        //更新绑定事件
+        existingInvoker.value = nextVal;
+    }
+    else {
+        const name = key.slice(2).toLowerCase();
+        if (nextVal) {
+            //新增绑定事件
+            const invoker = (invokers[key] = createInvoker(nextVal));
+            el.addEventListener(name, invoker);
+        }
+        else if (existingInvoker) {
+            //移除绑定事件
+            el.removeEventListener(name, existingInvoker);
+            invokers[key] = undefined;
+        }
+    }
+}
+function createInvoker(initialValue) {
+    const invoker = (e) => {
+        if (Array.isArray(invoker.value)) {
+            invoker.value.forEach((fn) => fn(e));
+        }
+        else {
+            invoker.value(e);
+        }
+    };
+    invoker.value = initialValue;
+    return invoker;
+}
+
 function createElement(type) {
     // console.log('createEl------------')
     return document.createElement(type);
 }
-function patchProp(el, key, preVal, nextVal) {
+function patchProp(el, key, prevVal, nextVal) {
     //如果是on开头的，就绑定事件
     const isOn = (key) => /^on[A-Z]/.test(key);
     if (isOn(key)) {
-        el.addEventListener(key.slice(2).toLowerCase(), nextVal);
+        patchEvent(el, key, prevVal, nextVal);
+        // el.addEventListener(key.slice(2).toLowerCase(), nextVal)
     }
     //否则就是普通的设置attribute
     if (nextVal === undefined || nextVal === null) {
@@ -1010,7 +1212,13 @@ function setElementText(el, children) {
 }
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
-const renderer = createRenderer({ createElement, patchProp, insert, remove, setElementText });
+const renderer = createRenderer({
+    createElement,
+    patchProp,
+    insert,
+    remove,
+    setElementText,
+});
 function createApp(...args) {
     return renderer.createApp(...args);
 }

@@ -1,15 +1,16 @@
 import { createRenderer } from '@my-simplified-vue/runtime-core'
+import { patchEvent } from './modules/event'
 
 function createElement(type) {
   // console.log('createEl------------')
   return document.createElement(type)
 }
 
-function patchProp(el, key, preVal, nextVal) {
+function patchProp(el, key: string, prevVal, nextVal) {
   //如果是on开头的，就绑定事件
   const isOn = (key: string) => /^on[A-Z]/.test(key)
   if (isOn(key)) {
-    el.addEventListener(key.slice(2).toLowerCase(), nextVal)
+    patchEvent(el, key, prevVal, nextVal)
   }
   //否则就是普通的设置attribute
   if (nextVal === undefined || nextVal === null) {
