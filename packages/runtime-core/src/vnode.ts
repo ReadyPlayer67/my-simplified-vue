@@ -6,19 +6,18 @@ export const Text = Symbol('Text')
 
 export { createVNode as createElementVNode }
 
-// export interface VNode {
-//   type: any
-//   props: (VNodeProps & ExtraProps) | null
-//   key: string | number | symbol | null
-//   ref: VNodeNormalizedRef | null
-//   children: VNodeNormalizedChildren
-//   component: ComponentInternalInstance | null
-//   shapeFlag: number
-//   el: Record<string, any>
-// }
+export interface VNode {
+  type: string | Symbol
+  props: Record<string, any> | null
+  key: string | number | symbol | null
+  children: string | null | Array<any>
+  component: any
+  shapeFlag: number
+  el: Record<string, any> | null
+}
 
 export function createVNode(type, props?, children?) {
-  const vnode = {
+  const vnode: VNode = {
     type,
     props,
     children,
