@@ -16,7 +16,7 @@ export interface VNode {
   el: Record<string, any> | null
 }
 
-export function createVNode(type, props?, children?) {
+export function crea0teVNode(type, props?, children?) {
   const vnode: VNode = {
     type,
     props,

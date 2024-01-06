@@ -1,7 +1,7 @@
 import { createComponentInstance, setupComponent } from './component'
 import { EMPTY_OBJ } from '@my-simplified-vue/shared'
 import { ShapeFlags } from '@my-simplified-vue/shared'
-import { Fragment, Text } from './vnode'
+import { Fragment, Text, type VNode } from './vnode'
 import { createAppApi } from './createApp'
 import { effect } from '@my-simplified-vue/reactivity'
 import { shouldUpdateComponent } from './componentUpdateUtils'
@@ -16,13 +16,19 @@ export function createRenderer(options) {
     setElementText: hostSetElementText,
   } = options
 
-  function render(vnode, container) {
+  function render(vnode: VNode, container) {
     //入口parentComponent是null
     patch(null, vnode, container, null, null)
   }
 
   //n1代表旧的vnode，n2代表新的vnode
-  function patch(n1, n2, container, parentComponent, anchor) {
+  function patch(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     console.log('patch')
     const { shapeFlag } = n2
     switch (n2.type) {
@@ -44,20 +50,32 @@ export function createRenderer(options) {
   }
 
   //处理Fragment类型节点
-  function processFragment(n1, n2, container, parentComponent, anchor) {
+  function processFragment(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     mountChildren(n2.children, container, parentComponent, anchor)
   }
 
   //处理Text类型节点
-  function processText(n1, n2, container) {
+  function processText(n1: VNode | null, n2: VNode, container) {
     //这里的children就是文本
     const { children } = n2
-    const textNode = (n2.el = document.createTextNode(children))
+    const textNode = (n2.el = document.createTextNode(children as string))
     container.append(textNode)
   }
 
   //处理element类型的vnode
-  function processElement(n1, n2, container, parentComponent, anchor) {
+  function processElement(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     if (!n1) {
       //如果n1不存在，是初始化
       mountElement(n2, container, parentComponent, anchor)
@@ -66,7 +84,13 @@ export function createRenderer(options) {
     }
   }
 
-  function patchElement(n1, n2, container, parentComponent, anchor) {
+  function patchElement(
+    n1: VNode,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     const oldProps = n1.props || EMPTY_OBJ
     const newProps = n2.props || EMPTY_OBJ
     const el = (n2.el = n1.el)
@@ -74,9 +98,15 @@ export function createRenderer(options) {
     patchProps(el, oldProps, newProps)
   }
 
-  function patchChildren(n1, n2, container, parentComponent, anchor) {
-    const prevShapeFlag = n1.shapeFlag
-    const c1 = n1.children
+  function patchChildren(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
+    const prevShapeFlag = n1 ? n1.shapeFlag : 0
+    const c1 = n1 && n1.children
     const { shapeFlag } = n2
     const c2 = n2.children
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
@@ -96,14 +126,20 @@ export function createRenderer(options) {
         hostSetElementText(container, '')
         mountChildren(c2, container, parentComponent, anchor)
       } else {
-        patchKeyedChildren(c1, c2, container, parentComponent, anchor)
+        patchKeyedChildren(
+          c1 as VNode[],
+          c2 as VNode[],
+          container,
+          parentComponent,
+          anchor
+        )
       }
     }
   }
 
   function patchKeyedChildren(
-    c1,
-    c2,
+    c1: VNode[],
+    c2: VNode[],
     container,
     parentComponent,
     parentAnchor
