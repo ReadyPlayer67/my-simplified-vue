@@ -10,13 +10,13 @@ export interface VNode {
   type: string | Symbol
   props: Record<string, any> | null
   key: string | number | symbol | null
-  children: string | null | Array<any>
+  children: string | null | VNode[]
   component: any
   shapeFlag: number
   el: Record<string, any> | null
 }
 
-export function crea0teVNode(type, props?, children?) {
+export function createVNode(type, props?, children?) {
   const vnode: VNode = {
     type,
     props,
