@@ -20,6 +20,7 @@ function patchProp(el, key: string, prevVal, nextVal) {
   }
 }
 
+//用来插入和移动节点的方法，如果el是当前parent的子节点，就会把它移动到anchor节点前，否则就是插入节点
 function insert(el, parent, anchor) {
   // console.log('insert------------')
   parent.insertBefore(el, anchor || null)
