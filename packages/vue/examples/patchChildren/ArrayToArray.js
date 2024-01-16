@@ -1,4 +1,4 @@
-import { ref, h } from "../../dist/my-simplified-vue.esm.js";
+import { ref, h } from '../../dist/my-simplified-vue.esm.js'
 // 1. 左侧的对比
 // (a b) c
 // (a b) d e
@@ -215,37 +215,37 @@ import { ref, h } from "../../dist/my-simplified-vue.esm.js";
 
 // fix c 节点应该是 move 而不是删除之后重新创建的
 const prevChildren = [
-    h("p", { key: "A" }, "A"),
-    h("p", { key: "F" }, "F"),
-    h("p", { }, "C"),
-    h("p", { }, "E"),
-    h("p", { key: "B" }, "B"),
-    h("p", { key: "D" }, "D"),
-];
+  h('p', { key: 'A' }, 'A'),
+  h('p', { key: 'F' }, 'F'),
+  h('p', {}, 'C'),
+  h('p', {}, 'E'),
+  h('p', { key: 'B' }, 'B'),
+  h('p', { key: 'D' }, 'D'),
+]
 const nextChildren = [
-    h("p", { key: "A" }, "A"),
-    h("p", { }, "E"),
-    h("p", { key: "B" }, "B"),
-    h("p", { key: "F" }, "F"),
-    h("p", { }, "C"),
-    h("p", { key: "D" }, "D"),
-];
+  h('p', { key: 'A' }, 'A'),
+  h('p', {}, 'E'),
+  h('p', { key: 'B' }, 'B'),
+  h('p', { key: 'F' }, 'F'),
+  h('p', {}, 'C'),
+  h('p', { key: 'D' }, 'D'),
+]
 
 export default {
-    name: "ArrayToArray",
-    setup() {
-        const isChange = ref(false);
-        window.isChange = isChange;
+  name: 'ArrayToArray',
+  setup() {
+    const isChange = ref(false)
+    window.isChange = isChange
 
-        return {
-            isChange,
-        };
-    },
-    render() {
-        const self = this;
-
-        return self.isChange === true
-            ? h("div", {}, nextChildren)
-            : h("div", {}, prevChildren);
+    return {
+      isChange,
     }
-};
+  },
+  render() {
+    const self = this
+
+    return self.isChange === true
+      ? h('div', {}, nextChildren)
+      : h('div', {}, prevChildren)
+  },
+}

@@ -1,25 +1,25 @@
 // 新的是 text
 // 老的是 text
-import { ref, h } from "../../dist/my-simplified-vue.esm.js";
+import { ref, h } from '../../dist/my-simplified-vue.esm.js'
 
-const prevChildren = "oldChild";
-const nextChildren = "newChild";
+const prevChildren = 'oldChild'
+const nextChildren = 'newChild'
 
 export default {
-    name: "TextToText",
-    setup() {
-        const isChange = ref(false);
-        window.isChange = isChange;
+  name: 'TextToText',
+  setup() {
+    const isChange = ref(false)
+    window.isChange = isChange
 
-        return {
-            isChange,
-        };
-    },
-    render() {
-        const self = this;
+    return {
+      isChange,
+    }
+  },
+  render() {
+    const self = this
 
-        return self.isChange === true
-            ? h("div", {}, nextChildren)
-            : h("div", {}, prevChildren);
-    },
-};
+    return self.isChange === true
+      ? h('div', {}, nextChildren)
+      : h('div', {}, prevChildren)
+  },
+}
