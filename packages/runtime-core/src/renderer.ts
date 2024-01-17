@@ -149,7 +149,7 @@ export function createRenderer(options) {
     let e1 = c1.length - 1
     let e2 = l2 - 1
 
-    function isSameVNodeType(n1, n2) {
+    function isSameVNodeType(n1: VNode, n2: VNode) {
       return n1.type === n2.type && n1.key === n2.key
     }
 
@@ -209,10 +209,10 @@ export function createRenderer(options) {
       const s2 = i
       //新节点数组中需要去对比的节点数量
       const toBePatched = e2 - s2 + 1
-      //已经对比过的节点数量
+      //新节点数组中已经对比过，并且在老节点数组中能够找到的节点数量
       let patched = 0
       //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系：{'c':3,'e':2}
-      const keyToNewIndexMap = new Map()
+      const keyToNewIndexMap = new Map<string | number | symbol, number>()
       //创建一个数组并指定长度（利于性能），下标是节点在新节点数组的位置索引，值是在老节点数组中的位置索引（从1开始数，0代表新增的）
       //a,b,c,d,e,z,f,g -> a,b,d,c,y,e,f,g 就是[4,3,0,5]
       const newIndexToOldIndexMap = new Array(toBePatched)
@@ -227,7 +227,9 @@ export function createRenderer(options) {
       //遍历新节点数组，生成map映射
       for (let i = s2; i <= e2; i++) {
         const nextChild = c2[i]
-        keyToNewIndexMap.set(nextChild.key, i)
+        if(nextChild.key !== null){
+          keyToNewIndexMap.set(nextChild.key, i)
+        }
       }
       //遍历老节点数组变动部分，再去新节点数组中查找该节点的位置，从而填充newIndexToOldIndexMap
       for (let i = s1; i <= e1; i++) {
@@ -237,7 +239,7 @@ export function createRenderer(options) {
           hostRemove(prevChild.el)
           continue
         }
-        let newIndex //老节点在新节点数组中的位置下标
+        let newIndex: number | undefined //老节点在新节点数组中的位置下标
         //如果用户设置了key属性，可以通过key直接查找到新元素的位置
         if (prevChild.key !== null) {
           newIndex = keyToNewIndexMap.get(prevChild.key)

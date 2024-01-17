@@ -3,8 +3,9 @@ import { PublicInstanceProxyHandlers } from './componentPublicInstance'
 import { initProps } from './componentProps'
 import { emit } from './componentEmit'
 import { initSlots } from './componentSlots'
+import { VNode } from './vnode'
 
-export function createComponentInstance(vnode, parent) {
+export function createComponentInstance(vnode: VNode, parent) {
   const instance = {
     vnode,
     next: null,
