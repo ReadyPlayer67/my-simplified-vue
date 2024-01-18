@@ -1,4 +1,5 @@
 import { ShapeFlags } from '@my-simplified-vue/shared'
+import { ComponentOptions } from './component'
 
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 export const Fragment = Symbol('Fragment')
@@ -7,7 +8,7 @@ export const Text = Symbol('Text')
 export { createVNode as createElementVNode }
 
 export interface VNode {
-  type: string | Symbol
+  type: string | typeof Fragment | typeof Text | ComponentOptions
   props: Record<string, unknown> | null
   key: string | number | symbol | null
   children: string | null | VNode[]
