@@ -21,6 +21,7 @@ export interface ComponentInternalInstance {
   parent: ComponentInternalInstance | null
   render: Function | null
   proxy: any
+  [LifecycleHooks.MOUNTED]: Function[] | null
 }
 
 export interface ComponentOptions {
@@ -45,6 +46,7 @@ export function createComponentInstance(vnode: VNode, parent) {
     parent,
     render: null,
     proxy: null,
+    [LifecycleHooks.MOUNTED]: null
   }
   //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
   //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -102,12 +104,12 @@ function finishComponentSetup(instance) {
   instance.render = Component.render
 }
 
-let currentInstance: ComponentInternalInstance | null = null
+export let currentInstance: ComponentInternalInstance | null = null
 export function getCurrentInstance() {
   return currentInstance
 }
 
-function setCurrentInstance(instance: ComponentInternalInstance | null) {
+export function setCurrentInstance(instance: ComponentInternalInstance | null) {
   currentInstance = instance
 }
 
