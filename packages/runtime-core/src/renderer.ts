@@ -1,4 +1,8 @@
-import { createComponentInstance, setupComponent } from './component'
+import {
+  ComponentInternalInstance,
+  createComponentInstance,
+  setupComponent,
+} from './component'
 import { EMPTY_OBJ } from '@my-simplified-vue/shared'
 import { ShapeFlags } from '@my-simplified-vue/shared'
 import { Fragment, Text, type VNode } from './vnode'
@@ -227,7 +231,7 @@ export function createRenderer(options) {
       //遍历新节点数组，生成map映射
       for (let i = s2; i <= e2; i++) {
         const nextChild = c2[i]
-        if(nextChild.key !== null){
+        if (nextChild.key !== null) {
           keyToNewIndexMap.set(nextChild.key, i)
         }
       }
@@ -360,7 +364,13 @@ export function createRenderer(options) {
   }
 
   //处理组件类型的vnode
-  function processComponent(n1, n2, container, parentComponent, anchor) {
+  function processComponent(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     if (!n1) {
       //挂载虚拟节点
       mountComponent(n2, container, parentComponent, anchor)
@@ -369,7 +379,7 @@ export function createRenderer(options) {
     }
   }
 
-  function updateComponent(n1, n2) {
+  function updateComponent(n1: VNode, n2: VNode) {
     //vnode上的component属性是在mountComponent时赋值的，n2是patch调用render方法生成的
     //它上面component属性初始值为null，所以这里需要赋值
     const instance = (n2.component = n1.component)
@@ -397,7 +407,12 @@ export function createRenderer(options) {
     setupRenderEffect(instance, initialVnode, container, anchor)
   }
 
-  function setupRenderEffect(instance, initialVnode, container, anchor) {
+  function setupRenderEffect(
+    instance: ComponentInternalInstance,
+    initialVnode,
+    container,
+    anchor
+  ) {
     //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
     //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
     //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
@@ -407,7 +422,7 @@ export function createRenderer(options) {
         if (!instance.isMounted) {
           //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
           const { proxy } = instance
-          const subTree = (instance.subTree = instance.render.call(
+          const subTree = (instance.subTree = instance.render!.call(
             proxy,
             proxy
           ))
@@ -417,6 +432,7 @@ export function createRenderer(options) {
           //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
           //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
           initialVnode.el = subTree.el
+          instance.subTree = subTree
           instance.isMounted = true
         } else {
           //拿到更新后的vnode(next)和更新前的vnode
@@ -427,7 +443,7 @@ export function createRenderer(options) {
             updateComponentPreRender(instance, next)
           }
           const { proxy } = instance
-          const subTree = instance.render.call(proxy, proxy)
+          const subTree = instance.render!.call(proxy, proxy)
           const prevSubTree = instance.subTree
           instance.subTree = subTree
           patch(prevSubTree, subTree, container, instance, anchor)
@@ -447,12 +463,17 @@ export function createRenderer(options) {
   }
 }
 
-function updateComponentPreRender(instance, nextVNode) {
+function updateComponentPreRender(
+  instance: ComponentInternalInstance,
+  nextVNode: VNode
+) {
   //更新instance上的虚拟节点，新的赋值给vnode属性，next属性置为null
   instance.vnode = nextVNode
   instance.next = null
   //把更新后的props赋值给instance.props属性，这样this.$props就能拿到最新的props值了
-  instance.props = nextVNode.props
+  if (nextVNode.props) {
+    instance.props = nextVNode.props
+  }
 }
 
 //求最长递增子序列的算法

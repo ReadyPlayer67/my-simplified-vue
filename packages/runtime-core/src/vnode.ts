@@ -8,7 +8,7 @@ export { createVNode as createElementVNode }
 
 export interface VNode {
   type: string | Symbol
-  props: Record<string, any> | null
+  props: Record<string, unknown> | null
   key: string | number | symbol | null
   children: string | null | VNode[]
   component: any

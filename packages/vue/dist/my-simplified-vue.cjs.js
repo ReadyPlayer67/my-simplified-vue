@@ -5,16 +5,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 const Fragment = Symbol('Fragment');
 const Text = Symbol('Text');
-// export interface VNode {
-//   type: any
-//   props: (VNodeProps & ExtraProps) | null
-//   key: string | number | symbol | null
-//   ref: VNodeNormalizedRef | null
-//   children: VNodeNormalizedChildren
-//   component: ComponentInternalInstance | null
-//   shapeFlag: number
-//   el: Record<string, any>
-// }
 function createVNode(type, props, children) {
     const vnode = {
         type,
@@ -537,16 +527,19 @@ function createComponentInstance(vnode, parent) {
         vnode,
         next: null,
         type: vnode.type,
+        //null!表示初始赋值为null，但在后续处理中会对其进行赋值，明确不会为null，这样就无需将这个属性定义为可选属性
         update: null,
         props: {},
         slots: {},
         setupState: {},
         emit: () => { },
         isMounted: false,
-        subTree: {},
+        subTree: null,
         //将parent.provides赋值给当前instance的provides实现跨组件传值
         provides: parent ? parent.provides : {},
         parent,
+        render: null,
+        proxy: null
     };
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -554,9 +547,10 @@ function createComponentInstance(vnode, parent) {
     return instance;
 }
 function setupComponent(instance) {
+    const { props, children } = instance.vnode;
     //把vnode上的props挂载到组件instance上
-    initProps(instance, instance.vnode.props);
-    initSlots(instance, instance.vnode.children);
+    initProps(instance, props);
+    initSlots(instance, children);
     //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
     setupStatefulComponent(instance);
 }
@@ -774,8 +768,8 @@ function createRenderer(options) {
         patchProps(el, oldProps, newProps);
     }
     function patchChildren(n1, n2, container, parentComponent, anchor) {
-        const prevShapeFlag = n1.shapeFlag;
-        const c1 = n1.children;
+        const prevShapeFlag = n1 ? n1.shapeFlag : 0;
+        const c1 = n1 && n1.children;
         const { shapeFlag } = n2;
         const c2 = n2.children;
         if (shapeFlag & 4 /* ShapeFlags.TEXT_CHILDREN */) {
@@ -870,7 +864,7 @@ function createRenderer(options) {
             const s2 = i;
             //新节点数组中需要去对比的节点数量
             const toBePatched = e2 - s2 + 1;
-            //已经对比过的节点数量
+            //新节点数组中已经对比过，并且在老节点数组中能够找到的节点数量
             let patched = 0;
             //新建一个map存放节点的key和节点在新节点数组中下标的mapping关系：{'c':3,'e':2}
             const keyToNewIndexMap = new Map();
@@ -888,7 +882,9 @@ function createRenderer(options) {
             //遍历新节点数组，生成map映射
             for (let i = s2; i <= e2; i++) {
                 const nextChild = c2[i];
-                keyToNewIndexMap.set(nextChild.key, i);
+                if (nextChild.key !== null) {
+                    keyToNewIndexMap.set(nextChild.key, i);
+                }
             }
             //遍历老节点数组变动部分，再去新节点数组中查找该节点的位置，从而填充newIndexToOldIndexMap
             for (let i = s1; i <= e1; i++) {
@@ -1069,6 +1065,7 @@ function createRenderer(options) {
                 //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
+                instance.subTree = subTree;
                 instance.isMounted = true;
             }
             else {
@@ -1191,7 +1188,6 @@ function patchProp(el, key, prevVal, nextVal) {
     const isOn = (key) => /^on[A-Z]/.test(key);
     if (isOn(key)) {
         patchEvent(el, key, prevVal, nextVal);
-        // el.addEventListener(key.slice(2).toLowerCase(), nextVal)
     }
     //否则就是普通的设置attribute
     if (nextVal === undefined || nextVal === null) {
@@ -1201,6 +1197,7 @@ function patchProp(el, key, prevVal, nextVal) {
         el.setAttribute(key, nextVal);
     }
 }
+//用来插入和移动节点的方法，如果el是当前parent的子节点，就会把它移动到anchor节点前，否则就是插入节点
 function insert(el, parent, anchor) {
     // console.log('insert------------')
     parent.insertBefore(el, anchor || null);
