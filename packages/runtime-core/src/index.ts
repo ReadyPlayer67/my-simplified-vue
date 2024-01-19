@@ -1,5 +1,6 @@
 //导出h方法
 export { h } from './h'
+export { onMounted } from './apiLifecycle'
 export { renderSlots } from './helpers/renderSlots'
 export { createTextVNode, createElementVNode } from './vnode'
 export { getCurrentInstance, registerRuntimeCompiler } from './component'

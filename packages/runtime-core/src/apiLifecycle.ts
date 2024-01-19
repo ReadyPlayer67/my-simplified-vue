@@ -6,12 +6,12 @@ import {
 import { LifecycleHooks } from './enums'
 
 export const onMounted = (
-  hook,
+  hook: Function,
   target: ComponentInternalInstance | null = currentInstance
 ) => {
   if (target) {
     setCurrentInstance(target)
-    const hooks = target[LifecycleHooks.MOUNTED] || []
+    const hooks = target[LifecycleHooks.MOUNTED] || (target[LifecycleHooks.MOUNTED] = [])
     hooks.push(hook)
     setCurrentInstance(null)
   } else {

@@ -43,17 +43,6 @@ function h(type, props, children) {
     return createVNode(type, props, children);
 }
 
-//props是子组件往外传递的变量对象
-function renderSlots(slots, name, props) {
-    //slot此时是一个function
-    const slot = slots[name];
-    // console.log(slot)
-    if (typeof slot === 'function') {
-        //这里的slot就是(props) => normalizeSlotValue(value(props))这个函数
-        return createVNode(Fragment, {}, slot(props));
-    }
-}
-
 function toDisplayString(value) {
     return String(value);
 }
@@ -518,6 +507,24 @@ function normalizeSlotValue(value) {
     return Array.isArray(value) ? value : [value];
 }
 
+var LifecycleHooks;
+(function (LifecycleHooks) {
+    LifecycleHooks["BEFORE_CREATE"] = "bc";
+    LifecycleHooks["CREATED"] = "c";
+    LifecycleHooks["BEFORE_MOUNT"] = "bm";
+    LifecycleHooks["MOUNTED"] = "m";
+    LifecycleHooks["BEFORE_UPDATE"] = "bu";
+    LifecycleHooks["UPDATED"] = "u";
+    LifecycleHooks["BEFORE_UNMOUNT"] = "bum";
+    LifecycleHooks["UNMOUNTED"] = "um";
+    LifecycleHooks["DEACTIVATED"] = "da";
+    LifecycleHooks["ACTIVATED"] = "a";
+    LifecycleHooks["RENDER_TRIGGERED"] = "rtg";
+    LifecycleHooks["RENDER_TRACKED"] = "rtc";
+    LifecycleHooks["ERROR_CAPTURED"] = "ec";
+    LifecycleHooks["SERVER_PREFETCH"] = "sp";
+})(LifecycleHooks || (LifecycleHooks = {}));
+
 function createComponentInstance(vnode, parent) {
     const instance = {
         vnode,
@@ -535,7 +542,8 @@ function createComponentInstance(vnode, parent) {
         provides: parent ? parent.provides : {},
         parent,
         render: null,
-        proxy: null
+        proxy: null,
+        [LifecycleHooks.MOUNTED]: null
     };
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -561,6 +569,7 @@ function setupStatefulComponent(instance) {
         setCurrentInstance(instance);
         const setupResult = setup(shallowReadonly(instance.props), {
             emit: instance.emit,
+            slots: instance.slots,
         });
         setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
@@ -598,6 +607,29 @@ let compiler;
 //暴露一个方法用来给编译函数compiler赋值
 function registerRuntimeCompiler(_compiler) {
     compiler = _compiler;
+}
+
+const onMounted = (hook, target = currentInstance) => {
+    if (target) {
+        setCurrentInstance(target);
+        const hooks = target[LifecycleHooks.MOUNTED] || (target[LifecycleHooks.MOUNTED] = []);
+        hooks.push(hook);
+        setCurrentInstance(null);
+    }
+    else {
+        console.error('声明周期函数只能在setup函数中使用');
+    }
+};
+
+//props是子组件往外传递的变量对象
+function renderSlots(slots, name, props) {
+    //slot此时是一个function
+    const slot = slots[name];
+    // console.log(slot)
+    if (typeof slot === 'function') {
+        //这里的slot就是(props) => normalizeSlotValue(value(props))这个函数
+        return createVNode(Fragment, {}, slot(props));
+    }
 }
 
 const provide = (key, value) => {
@@ -1061,6 +1093,8 @@ function createRenderer(options) {
                 //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
+                // console.log('mounted', instance[LifecycleHooks.MOUNTED])
+                instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED].forEach(hook => hook());
                 instance.subTree = subTree;
                 instance.isMounted = true;
             }
@@ -1094,7 +1128,9 @@ function updateComponentPreRender(instance, nextVNode) {
     instance.vnode = nextVNode;
     instance.next = null;
     //把更新后的props赋值给instance.props属性，这样this.$props就能拿到最新的props值了
-    instance.props = nextVNode.props;
+    if (nextVNode.props) {
+        instance.props = nextVNode.props;
+    }
 }
 //求最长递增子序列的算法
 function getSequence(arr) {
@@ -1224,6 +1260,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     __proto__: null,
     createApp: createApp,
     h: h,
+    onMounted: onMounted,
     renderSlots: renderSlots,
     createTextVNode: createTextVNode,
     createElementVNode: createVNode,
@@ -1669,4 +1706,4 @@ function compileToFunction(template) {
 }
 registerRuntimeCompiler(compileToFunction);
 
-export { createApp, createVNode as createElementVNode, createRenderer, createTextVNode, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
+export { createApp, createVNode as createElementVNode, createRenderer, createTextVNode, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };

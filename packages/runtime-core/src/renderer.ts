@@ -10,6 +10,7 @@ import { createAppApi } from './createApp'
 import { effect } from '@my-simplified-vue/reactivity'
 import { shouldUpdateComponent } from './componentUpdateUtils'
 import { queueJobs } from './scheduler'
+import { LifecycleHooks } from './enums'
 
 export function createRenderer(options) {
   const {
@@ -432,6 +433,7 @@ export function createRenderer(options) {
           //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
           //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
           initialVnode.el = subTree.el
+          instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED]!.forEach(hook => hook())
           instance.subTree = subTree
           instance.isMounted = true
         } else {
