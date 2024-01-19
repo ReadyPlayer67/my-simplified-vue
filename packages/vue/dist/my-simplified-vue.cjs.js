@@ -547,7 +547,8 @@ function createComponentInstance(vnode, parent) {
         parent,
         render: null,
         proxy: null,
-        [LifecycleHooks.MOUNTED]: null
+        [LifecycleHooks.MOUNTED]: null,
+        [LifecycleHooks.UPDATED]: null,
     };
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -605,7 +606,13 @@ function getCurrentInstance() {
     return currentInstance;
 }
 function setCurrentInstance(instance) {
+    //缓存之前的currentInstance
+    const prev = instance;
     currentInstance = instance;
+    //返回一个重置方法，如果要还原回之前的currentInstance，就调用这个方法
+    return () => {
+        currentInstance = prev;
+    };
 }
 let compiler;
 //暴露一个方法用来给编译函数compiler赋值
@@ -613,17 +620,21 @@ function registerRuntimeCompiler(_compiler) {
     compiler = _compiler;
 }
 
-const onMounted = (hook, target = currentInstance) => {
-    if (target) {
-        setCurrentInstance(target);
-        const hooks = target[LifecycleHooks.MOUNTED] || (target[LifecycleHooks.MOUNTED] = []);
-        hooks.push(hook);
-        setCurrentInstance(null);
-    }
-    else {
-        console.error('声明周期函数只能在setup函数中使用');
-    }
+const createHook = (lifecycle) => {
+    return (hook, target = currentInstance) => {
+        if (target) {
+            const reset = setCurrentInstance(target);
+            const hooks = target[lifecycle] || (target[lifecycle] = []);
+            hooks.push(hook);
+            reset();
+        }
+        else {
+            console.error('声明周期函数只能在setup函数中使用');
+        }
+    };
 };
+const onMounted = createHook(LifecycleHooks.MOUNTED);
+const onUpdated = createHook(LifecycleHooks.UPDATED);
 
 //props是子组件往外传递的变量对象
 function renderSlots(slots, name, props) {
@@ -1097,7 +1108,6 @@ function createRenderer(options) {
                 //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
-                // console.log('mounted', instance[LifecycleHooks.MOUNTED])
                 instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED].forEach(hook => hook());
                 instance.subTree = subTree;
                 instance.isMounted = true;
@@ -1115,6 +1125,7 @@ function createRenderer(options) {
                 const prevSubTree = instance.subTree;
                 instance.subTree = subTree;
                 patch(prevSubTree, subTree, container, instance, anchor);
+                instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED].forEach(hook => hook());
             }
         }, {
             scheduler() {
@@ -1265,6 +1276,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     createApp: createApp,
     h: h,
     onMounted: onMounted,
+    onUpdated: onUpdated,
     renderSlots: renderSlots,
     createTextVNode: createTextVNode,
     createElementVNode: createVNode,
@@ -1724,6 +1736,7 @@ exports.isReadonly = isReadonly;
 exports.isRef = isRef;
 exports.nextTick = nextTick;
 exports.onMounted = onMounted;
+exports.onUpdated = onUpdated;
 exports.provide = provide;
 exports.proxyRefs = proxyRefs;
 exports.reactive = reactive;

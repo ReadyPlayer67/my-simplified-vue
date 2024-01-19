@@ -449,6 +449,7 @@ export function createRenderer(options) {
           const prevSubTree = instance.subTree
           instance.subTree = subTree
           patch(prevSubTree, subTree, container, instance, anchor)
+          instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED]!.forEach(hook => hook())
         }
       },
       {

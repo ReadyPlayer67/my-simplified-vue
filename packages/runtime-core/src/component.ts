@@ -22,6 +22,7 @@ export interface ComponentInternalInstance {
   render: Function | null
   proxy: any
   [LifecycleHooks.MOUNTED]: Function[] | null
+  [LifecycleHooks.UPDATED]: Function[] | null
 }
 
 export interface ComponentOptions {
@@ -46,7 +47,8 @@ export function createComponentInstance(vnode: VNode, parent) {
     parent,
     render: null,
     proxy: null,
-    [LifecycleHooks.MOUNTED]: null
+    [LifecycleHooks.MOUNTED]: null,
+    [LifecycleHooks.UPDATED]: null,
   }
   //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
   //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -110,7 +112,13 @@ export function getCurrentInstance() {
 }
 
 export function setCurrentInstance(instance: ComponentInternalInstance | null) {
+  //缓存之前的currentInstance
+  const prev = instance
   currentInstance = instance
+  //返回一个重置方法，如果要还原回之前的currentInstance，就调用这个方法
+  return () => {
+    currentInstance = prev
+  }
 }
 
 let compiler
