@@ -5,6 +5,7 @@ import { emit } from './componentEmit'
 import { initSlots } from './componentSlots'
 import { Fragment, VNode } from './vnode'
 import { LifecycleHooks } from './enums'
+import { isFunction, isObject } from '@my-simplified-vue/shared'
 
 export interface ComponentInternalInstance {
   vnode: VNode
@@ -80,30 +81,39 @@ function setupStatefulComponent(instance: ComponentInternalInstance) {
     })
     setCurrentInstance(null)
     handleSetupResult(instance, setupResult)
+  } else {
+    finishComponentSetup(instance)
   }
 }
 
-function handleSetupResult(instance, setupResult) {
+function handleSetupResult(
+  instance: ComponentInternalInstance,
+  setupResult: unknown
+) {
   //TODO function
   //setupResult有可能是function或者object
   //如果是function就认为是render函数，如果是object就注入到组件上下文中
-  if (typeof setupResult === 'object') {
+  if (isObject(setupResult)) {
     //使用proxyRefs解包setupResult中的ref
     instance.setupState = proxyRefs(setupResult)
+  } else if (isFunction(setupResult)) {
+    instance.render = setupResult
   }
   finishComponentSetup(instance)
 }
 
 function finishComponentSetup(instance) {
   const Component = instance.type
-  //给instance设置render
-  //如果有compiler函数并且用户没有提供render方法而提供了template模板，就执行编译template为render函数
-  if (compiler && !Component.render) {
-    if (Component.template) {
-      Component.render = compiler(Component.template)
+  if (!instance.render) {
+    //给instance设置render
+    //如果有compiler函数并且用户没有提供render方法而提供了template模板，就执行编译template为render函数
+    if (compiler && !Component.render) {
+      if (Component.template) {
+        Component.render = compiler(Component.template)
+      }
     }
+    instance.render = Component.render
   }
-  instance.render = Component.render
 }
 
 export let currentInstance: ComponentInternalInstance | null = null
