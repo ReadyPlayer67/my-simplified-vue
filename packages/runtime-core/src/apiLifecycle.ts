@@ -18,7 +18,7 @@ const createHook = (lifecycle: LifecycleHooks) => {
       //挂载完之后记得还原组件实例为之前的组件实例
       reset()
     } else {
-      console.error('声明周期函数只能在setup函数中使用')
+      console.error('生命周期函数只能在setup函数中使用')
     }
   }
 }

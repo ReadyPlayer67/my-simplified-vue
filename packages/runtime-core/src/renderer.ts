@@ -433,6 +433,7 @@ export function createRenderer(options) {
           //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
           //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
           initialVnode.el = subTree.el
+          //组件挂载完毕后执行mounted生命周期
           instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED]!.forEach(hook => hook())
           instance.subTree = subTree
           instance.isMounted = true
@@ -449,6 +450,7 @@ export function createRenderer(options) {
           const prevSubTree = instance.subTree
           instance.subTree = subTree
           patch(prevSubTree, subTree, container, instance, anchor)
+          //组件更新完毕后执行updated生命周期
           instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED]!.forEach(hook => hook())
         }
       },

@@ -1,5 +1,6 @@
 //导出h方法
 export { h } from './h'
+export { defineAsyncComponent } from './apiAsyncComponent'
 export { onMounted, onUpdated } from './apiLifecycle'
 export { renderSlots } from './helpers/renderSlots'
 export { createTextVNode, createElementVNode } from './vnode'

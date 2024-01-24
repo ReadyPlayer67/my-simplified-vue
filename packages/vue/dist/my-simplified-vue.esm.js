@@ -49,9 +49,8 @@ function toDisplayString(value) {
 
 const extend = Object.assign;
 const EMPTY_OBJ = {};
-const isObject = (val) => {
-    return val !== null && typeof val === 'object';
-};
+const isObject = (val) => val !== null && typeof val === 'object';
+const isFunction = (val) => typeof val === 'function';
 const isString = (val) => typeof val === 'string';
 const hasChange = (val, newVal) => {
     return !Object.is(val, newVal);
@@ -575,27 +574,35 @@ function setupStatefulComponent(instance) {
         setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
     }
+    else {
+        finishComponentSetup(instance);
+    }
 }
 function handleSetupResult(instance, setupResult) {
     //TODO function
     //setupResult有可能是function或者object
     //如果是function就认为是render函数，如果是object就注入到组件上下文中
-    if (typeof setupResult === 'object') {
+    if (isObject(setupResult)) {
         //使用proxyRefs解包setupResult中的ref
         instance.setupState = proxyRefs(setupResult);
+    }
+    else if (isFunction(setupResult)) {
+        instance.render = setupResult;
     }
     finishComponentSetup(instance);
 }
 function finishComponentSetup(instance) {
     const Component = instance.type;
-    //给instance设置render
-    //如果有compiler函数并且用户没有提供render方法而提供了template模板，就执行编译template为render函数
-    if (compiler && !Component.render) {
-        if (Component.template) {
-            Component.render = compiler(Component.template);
+    if (!instance.render) {
+        //给instance设置render
+        //如果有compiler函数并且用户没有提供render方法而提供了template模板，就执行编译template为render函数
+        if (compiler && !Component.render) {
+            if (Component.template) {
+                Component.render = compiler(Component.template);
+            }
         }
+        instance.render = Component.render;
     }
-    instance.render = Component.render;
 }
 let currentInstance = null;
 function getCurrentInstance() {
@@ -616,16 +623,43 @@ function registerRuntimeCompiler(_compiler) {
     compiler = _compiler;
 }
 
+function defineAsyncComponent(loader) {
+    let resolvedComp;
+    return {
+        name: 'AsyncComponentWrapper',
+        setup() {
+            const loaded = ref(false);
+            const instance = currentInstance;
+            loader().then((comp) => {
+                resolvedComp = comp;
+                loaded.value = true;
+            });
+            return () => {
+                return loaded.value
+                    ? createInnerComp(resolvedComp, instance)
+                    : createVNode('div', {}, 'Loading...');
+            };
+        },
+    };
+}
+function createInnerComp(comp, parent) {
+    const { props, children } = parent.vnode;
+    const vnode = createVNode(comp, props, children);
+    return vnode;
+}
+
 const createHook = (lifecycle) => {
     return (hook, target = currentInstance) => {
         if (target) {
+            //将当前组件实例设置为target，以便挂载生命周期函数
             const reset = setCurrentInstance(target);
             const hooks = target[lifecycle] || (target[lifecycle] = []);
             hooks.push(hook);
+            //挂载完之后记得还原组件实例为之前的组件实例
             reset();
         }
         else {
-            console.error('声明周期函数只能在setup函数中使用');
+            console.error('生命周期函数只能在setup函数中使用');
         }
     };
 };
@@ -1104,6 +1138,7 @@ function createRenderer(options) {
                 //所有的element都已经mount了，也就是说组件被全部转换为了element组成的虚拟节点树结构
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
+                //组件挂载完毕后执行mounted生命周期
                 instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED].forEach(hook => hook());
                 instance.subTree = subTree;
                 instance.isMounted = true;
@@ -1121,6 +1156,7 @@ function createRenderer(options) {
                 const prevSubTree = instance.subTree;
                 instance.subTree = subTree;
                 patch(prevSubTree, subTree, container, instance, anchor);
+                //组件更新完毕后执行updated生命周期
                 instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED].forEach(hook => hook());
             }
         }, {
@@ -1271,6 +1307,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     __proto__: null,
     createApp: createApp,
     h: h,
+    defineAsyncComponent: defineAsyncComponent,
     onMounted: onMounted,
     onUpdated: onUpdated,
     renderSlots: renderSlots,
@@ -1718,4 +1755,4 @@ function compileToFunction(template) {
 }
 registerRuntimeCompiler(compileToFunction);
 
-export { createApp, createVNode as createElementVNode, createRenderer, createTextVNode, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
+export { createApp, createVNode as createElementVNode, createRenderer, createTextVNode, defineAsyncComponent, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
