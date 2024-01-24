@@ -1,11 +1,18 @@
 import {
   ComponentInternalInstance,
+  FunctionalComponent,
   createComponentInstance,
   setupComponent,
 } from './component'
 import { EMPTY_OBJ } from '@my-simplified-vue/shared'
 import { ShapeFlags } from '@my-simplified-vue/shared'
-import { Fragment, Text, type VNode } from './vnode'
+import {
+  Fragment,
+  Text,
+  createVNode,
+  type VNode,
+  normalizeVNode,
+} from './vnode'
 import { createAppApi } from './createApp'
 import { effect } from '@my-simplified-vue/reactivity'
 import { shouldUpdateComponent } from './componentUpdateUtils'
@@ -47,7 +54,7 @@ export function createRenderer(options) {
         //通过位运算符判断vnode的类型
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(n1, n2, container, parentComponent, anchor)
-        } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+        } else if (shapeFlag & ShapeFlags.COMPONENT) {
           processComponent(n1, n2, container, parentComponent, anchor)
         }
         break
@@ -359,9 +366,13 @@ export function createRenderer(options) {
   }
 
   function mountChildren(children, container, parentComponent, anchor) {
-    children.forEach((vnode) => {
-      patch(null, vnode, container, parentComponent, anchor)
-    })
+    // children.forEach((vnode) => {
+    //   patch(null, vnode, container, parentComponent, anchor)
+    // })
+    for (let i = 0; i < children.length; i++) {
+      const child = (children[i] = normalizeVNode(children[i]))
+      patch(null, child, container, parentComponent, anchor)
+    }
   }
 
   //处理组件类型的vnode
@@ -414,6 +425,8 @@ export function createRenderer(options) {
     container,
     anchor
   ) {
+    const { type, vnode, proxy, props } = instance
+    let { render } = instance
     //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
     //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
     //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
@@ -421,12 +434,19 @@ export function createRenderer(options) {
       () => {
         //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
         if (!instance.isMounted) {
-          //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
-          const { proxy } = instance
-          const subTree = (instance.subTree = instance.render!.call(
-            proxy,
-            proxy
-          ))
+          let subTree: VNode
+          if (
+            vnode.shapeFlag &&
+            vnode.shapeFlag & ShapeFlags.FUNCTIONAL_COMPONENT
+          ) {
+            //如果是函数组件，组件的type为() => {...}，就是渲染函数
+            render = type as FunctionalComponent
+            subTree = normalizeVNode(render(props))
+          } else {
+            //对于有状态组件，render函数就是instance.render
+            //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
+            subTree = instance.subTree = normalizeVNode(render!.call(proxy, proxy))
+          }
           //vnode->element->mountElement
           //拿到组件的子组件，再交给patch方法处理
           patch(null, subTree, container, instance, anchor)
@@ -434,24 +454,34 @@ export function createRenderer(options) {
           //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
           initialVnode.el = subTree.el
           //组件挂载完毕后执行mounted生命周期
-          instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED]!.forEach(hook => hook())
+          instance[LifecycleHooks.MOUNTED] &&
+            instance[LifecycleHooks.MOUNTED]!.forEach((hook) => hook())
           instance.subTree = subTree
           instance.isMounted = true
         } else {
           //拿到更新后的vnode(next)和更新前的vnode
-          const { next, vnode } = instance
+          const { next } = instance
+          let subTree: VNode
           if (next) {
             //vnode上的el属性只在mount的时候由subTree.el赋值，所以这里update的时候要给next.el赋值
             next.el = vnode.el
             updateComponentPreRender(instance, next)
           }
-          const { proxy } = instance
-          const subTree = instance.render!.call(proxy, proxy)
+          if (
+            vnode.shapeFlag &&
+            vnode.shapeFlag & ShapeFlags.FUNCTIONAL_COMPONENT
+          ) {
+            render = type as FunctionalComponent
+            subTree = normalizeVNode(render(props))
+          }else {
+            subTree = normalizeVNode(render!.call(proxy, proxy))
+          }
           const prevSubTree = instance.subTree
           instance.subTree = subTree
           patch(prevSubTree, subTree, container, instance, anchor)
           //组件更新完毕后执行updated生命周期
-          instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED]!.forEach(hook => hook())
+          instance[LifecycleHooks.UPDATED] &&
+            instance[LifecycleHooks.UPDATED]!.forEach((hook) => hook())
         }
       },
       {

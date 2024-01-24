@@ -5,12 +5,12 @@ import { emit } from './componentEmit'
 import { initSlots } from './componentSlots'
 import { Fragment, VNode } from './vnode'
 import { LifecycleHooks } from './enums'
-import { isFunction, isObject } from '@my-simplified-vue/shared'
+import { ShapeFlags, isFunction, isObject } from '@my-simplified-vue/shared'
 
 export interface ComponentInternalInstance {
   vnode: VNode
   next: VNode | null
-  type: string | Symbol | ComponentOptions
+  type: string | Symbol | ComponentOptions | FunctionalComponent
   update: Function
   props: Record<string, unknown>
   slots: any
@@ -28,6 +28,10 @@ export interface ComponentInternalInstance {
 
 export interface ComponentOptions {
   setup?: (this: void, props: any, ctx: any) => void
+}
+
+export interface FunctionalComponent {
+  (props: any, ctx: any): any
 }
 
 export function createComponentInstance(vnode: VNode, parent) {
@@ -57,13 +61,21 @@ export function createComponentInstance(vnode: VNode, parent) {
   return instance
 }
 
+//区分一个组件是函数式组件还是有状态组件
+export function isStatefulComponent(instance: ComponentInternalInstance) {
+  return instance.vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT
+}
+
 export function setupComponent(instance: ComponentInternalInstance) {
   const { props, children } = instance.vnode
+  const isStateful = isStatefulComponent(instance)
   //把vnode上的props挂载到组件instance上
   initProps(instance, props)
   initSlots(instance, children)
-  //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
-  setupStatefulComponent(instance)
+  const setupResult = isStateful
+    ? setupStatefulComponent(instance) //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
+    : undefined
+  return setupResult
 }
 
 function setupStatefulComponent(instance: ComponentInternalInstance) {
