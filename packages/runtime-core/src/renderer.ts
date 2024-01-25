@@ -12,6 +12,7 @@ import {
   createVNode,
   type VNode,
   normalizeVNode,
+  isSameVNodeType,
 } from './vnode'
 import { createAppApi } from './createApp'
 import { effect } from '@my-simplified-vue/reactivity'
@@ -42,6 +43,11 @@ export function createRenderer(options) {
     anchor
   ) {
     console.log('patch')
+    if (n1 && !isSameVNodeType(n1, n2)) {
+      // anchor = getNextHostNode(n1)
+      unmount(n1, parentComponent)
+      n1 = null
+    }
     const { shapeFlag } = n2
     switch (n2.type) {
       case Fragment:
@@ -124,7 +130,7 @@ export function createRenderer(options) {
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         //老的是array，新的是text
-        unmountChildren(c1)
+        unmountChildren(c1 as VNode[], parentComponent)
         hostSetElementText(container, c2)
       } else {
         //老的是text，新的也是text
@@ -160,10 +166,6 @@ export function createRenderer(options) {
     const l2 = c2.length
     let e1 = c1.length - 1
     let e2 = l2 - 1
-
-    function isSameVNodeType(n1: VNode, n2: VNode) {
-      return n1.type === n2.type && n1.key === n2.key
-    }
 
     //对比左侧和右侧排除相同的前置节点和后置节点
     //对比左侧
@@ -315,13 +317,6 @@ export function createRenderer(options) {
     }
   }
 
-  function unmountChildren(children) {
-    for (let item of children) {
-      const el = item.el
-      hostRemove(el)
-    }
-  }
-
   function patchProps(el, oldProps, newProps) {
     if (oldProps !== newProps) {
       for (const key in newProps) {
@@ -419,19 +414,48 @@ export function createRenderer(options) {
     setupRenderEffect(instance, initialVnode, container, anchor)
   }
 
+  function unmount(
+    vnode: VNode,
+    parentComponent: ComponentInternalInstance | null
+  ) {
+    const { type, props, children, shapeFlag, el } = vnode
+    if (shapeFlag && shapeFlag & ShapeFlags.COMPONENT) {
+      unmountComponent(vnode.component, parentComponent)
+    } else {
+      hostRemove(el)
+    }
+  }
+
+  function unmountChildren(
+    children: VNode[],
+    parentComponent: ComponentInternalInstance | null
+  ) {
+    for (let child of children) {
+      unmount(child, parentComponent)
+    }
+  }
+
+  function unmountComponent(
+    instance: ComponentInternalInstance,
+    parentComponent: ComponentInternalInstance | null
+  ) {
+    const { subTree } = instance
+    unmount(subTree, instance)
+  }
+
   function setupRenderEffect(
     instance: ComponentInternalInstance,
     initialVnode,
     container,
     anchor
   ) {
-    const { type, vnode, proxy, props } = instance
-    let { render } = instance
     //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
     //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
     //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
     instance.update = effect(
       () => {
+        const { type, vnode, proxy, props } = instance
+        let { render } = instance
         //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
         if (!instance.isMounted) {
           let subTree: VNode
@@ -445,7 +469,9 @@ export function createRenderer(options) {
           } else {
             //对于有状态组件，render函数就是instance.render
             //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
-            subTree = instance.subTree = normalizeVNode(render!.call(proxy, proxy))
+            subTree = instance.subTree = normalizeVNode(
+              render!.call(proxy, proxy)
+            )
           }
           //vnode->element->mountElement
           //拿到组件的子组件，再交给patch方法处理
@@ -460,7 +486,8 @@ export function createRenderer(options) {
           instance.isMounted = true
         } else {
           //拿到更新后的vnode(next)和更新前的vnode
-          const { next } = instance
+          const { type, vnode, proxy, props, next } = instance
+          let { render } = instance
           let subTree: VNode
           if (next) {
             //vnode上的el属性只在mount的时候由subTree.el赋值，所以这里update的时候要给next.el赋值
@@ -473,7 +500,7 @@ export function createRenderer(options) {
           ) {
             render = type as FunctionalComponent
             subTree = normalizeVNode(render(props))
-          }else {
+          } else {
             subTree = normalizeVNode(render!.call(proxy, proxy))
           }
           const prevSubTree = instance.subTree

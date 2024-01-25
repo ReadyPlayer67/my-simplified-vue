@@ -37,6 +37,8 @@ export function createVNode(type, props?, children?) {
     vnode.shapeFlag |= ShapeFlags.TEXT_CHILDREN
   } else if (Array.isArray(children)) {
     vnode.shapeFlag |= ShapeFlags.ARRAY_CHILDREN
+  } else if(isFunction(type)){
+    vnode.shapeFlag |= ShapeFlags.FUNCTIONAL_COMPONENT
   }
   //如果vnode是组件类型且children是object，我们才认为他有插槽
   if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
@@ -73,4 +75,8 @@ export function normalizeVNode(child): VNode {
   } else {
     return createVNode(Text, null, String(child))
   }
+}
+
+export function isSameVNodeType(n1: VNode, n2: VNode) {
+  return n1.type === n2.type && n1.key === n2.key
 }

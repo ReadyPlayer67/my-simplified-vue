@@ -2,51 +2,6 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-//使用Symbol创建一个全局变量作为Fragment类型vnode的type
-const Fragment = Symbol('Fragment');
-const Text = Symbol('Text');
-function createVNode(type, props, children) {
-    const vnode = {
-        type,
-        props,
-        children,
-        component: null,
-        key: props && props.key,
-        shapeFlag: getShapeFlag(type),
-        el: null,
-    };
-    if (typeof children === 'string') {
-        //vnode.shapeFlag = vnode.shapeFlag | ShapeFlags.TEXT_CHILDREN 可以简写为
-        vnode.shapeFlag |= 4 /* ShapeFlags.TEXT_CHILDREN */;
-    }
-    else if (Array.isArray(children)) {
-        vnode.shapeFlag |= 8 /* ShapeFlags.ARRAY_CHILDREN */;
-    }
-    //如果vnode是组件类型且children是object，我们才认为他有插槽
-    if (vnode.shapeFlag & 2 /* ShapeFlags.STATEFUL_COMPONENT */) {
-        if (typeof vnode.children === 'object') {
-            vnode.shapeFlag |= 16 /* ShapeFlags.SLOT_CHILDREN */;
-        }
-    }
-    return vnode;
-}
-function createTextVNode(text) {
-    return createVNode(Text, {}, text);
-}
-function getShapeFlag(type) {
-    ////如果vnode的type是字符串，他就是element类型，否则就是component
-    if (typeof type === 'string') {
-        return 1 /* ShapeFlags.ELEMENT */;
-    }
-    else {
-        return 2 /* ShapeFlags.STATEFUL_COMPONENT */;
-    }
-}
-
-function h(type, props, children) {
-    return createVNode(type, props, children);
-}
-
 function toDisplayString(value) {
     return String(value);
 }
@@ -54,6 +9,7 @@ function toDisplayString(value) {
 const extend = Object.assign;
 const EMPTY_OBJ = {};
 const isObject = (val) => val !== null && typeof val === 'object';
+const isArray = Array.isArray;
 const isFunction = (val) => typeof val === 'function';
 const isString = (val) => typeof val === 'string';
 const hasChange = (val, newVal) => {
@@ -74,6 +30,76 @@ const capitalize = (str) => {
 const toHandlerKey = (str) => {
     return str ? 'on' + capitalize(camelize(str)) : '';
 };
+
+//使用Symbol创建一个全局变量作为Fragment类型vnode的type
+const Fragment = Symbol('Fragment');
+const Text = Symbol('Text');
+function createVNode(type, props, children) {
+    const vnode = {
+        type,
+        props,
+        children,
+        component: null,
+        key: props && props.key,
+        shapeFlag: getShapeFlag(type),
+        el: null,
+    };
+    if (typeof children === 'string') {
+        //vnode.shapeFlag = vnode.shapeFlag | ShapeFlags.TEXT_CHILDREN 可以简写为
+        vnode.shapeFlag |= 8 /* ShapeFlags.TEXT_CHILDREN */;
+    }
+    else if (Array.isArray(children)) {
+        vnode.shapeFlag |= 16 /* ShapeFlags.ARRAY_CHILDREN */;
+    }
+    else if (isFunction(type)) {
+        vnode.shapeFlag |= 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */;
+    }
+    //如果vnode是组件类型且children是object，我们才认为他有插槽
+    if (vnode.shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
+        if (typeof vnode.children === 'object') {
+            vnode.shapeFlag |= 32 /* ShapeFlags.SLOT_CHILDREN */;
+        }
+    }
+    return vnode;
+}
+function createTextVNode(text) {
+    return createVNode(Text, {}, text);
+}
+function getShapeFlag(type) {
+    ////如果vnode的type是字符串，他就是element类型，否则就是component
+    if (typeof type === 'string') {
+        return 1 /* ShapeFlags.ELEMENT */;
+    }
+    else if (isObject(type)) {
+        return 4 /* ShapeFlags.STATEFUL_COMPONENT */;
+    }
+    else if (isFunction(type)) {
+        return 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */;
+    }
+    else {
+        return 0;
+    }
+}
+//构建VNode的方法，比如节点是一段文本，包裹为Text类型的节点
+function normalizeVNode(child) {
+    if (isArray(child)) {
+        // fragment
+        return createVNode(Fragment, null, child.slice());
+    }
+    else if (typeof child === 'object') {
+        return child;
+    }
+    else {
+        return createVNode(Text, null, String(child));
+    }
+}
+function isSameVNodeType(n1, n2) {
+    return n1.type === n2.type && n1.key === n2.key;
+}
+
+function h(type, props, children) {
+    return createVNode(type, props, children);
+}
 
 const ITERATE_KEY = Symbol('');
 let activeEffect; //用一个全局变量表示当前get操作触发的effect
@@ -492,7 +518,7 @@ function emit(instance, event, ...args) {
 }
 
 function initSlots(instance, children) {
-    if (instance.vnode.shapeFlag & 16 /* ShapeFlags.SLOT_CHILDREN */) {
+    if (instance.vnode.shapeFlag & 32 /* ShapeFlags.SLOT_CHILDREN */) {
         normalizeObjectSlots(children, instance.slots);
     }
 }
@@ -554,13 +580,20 @@ function createComponentInstance(vnode, parent) {
     instance.emit = emit.bind(null, instance);
     return instance;
 }
+//区分一个组件是函数式组件还是有状态组件
+function isStatefulComponent(instance) {
+    return instance.vnode.shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */;
+}
 function setupComponent(instance) {
     const { props, children } = instance.vnode;
+    const isStateful = isStatefulComponent(instance);
     //把vnode上的props挂载到组件instance上
     initProps(instance, props);
     initSlots(instance, children);
-    //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
-    setupStatefulComponent(instance);
+    const setupResult = isStateful
+        ? setupStatefulComponent(instance) //初始化有状态的组件，与此相对的还有一个纯函数组件，是没有状态的
+        : undefined;
+    return setupResult;
 }
 function setupStatefulComponent(instance) {
     //调用setup()，拿到返回值
@@ -627,7 +660,11 @@ function registerRuntimeCompiler(_compiler) {
     compiler = _compiler;
 }
 
-function defineAsyncComponent(loader) {
+function defineAsyncComponent(source) {
+    if (isFunction(source)) {
+        source = { loader: source };
+    }
+    const { loader, loadingComponent } = source;
     let resolvedComp;
     return {
         name: 'AsyncComponentWrapper',
@@ -639,9 +676,15 @@ function defineAsyncComponent(loader) {
                 loaded.value = true;
             });
             return () => {
-                return loaded.value
-                    ? createInnerComp(resolvedComp, instance)
-                    : createVNode('div', {}, 'Loading...');
+                // return loaded.value
+                //   ? createInnerComp(resolvedComp, instance)
+                //   : createVNode('div', {}, 'Loading...')
+                if (loaded.value) {
+                    return createInnerComp(resolvedComp, instance);
+                }
+                else if (loadingComponent) {
+                    return createVNode(loadingComponent);
+                }
             };
         },
     };
@@ -797,6 +840,11 @@ function createRenderer(options) {
     //n1代表旧的vnode，n2代表新的vnode
     function patch(n1, n2, container, parentComponent, anchor) {
         console.log('patch');
+        if (n1 && !isSameVNodeType(n1, n2)) {
+            // anchor = getNextHostNode(n1)
+            unmount(n1);
+            n1 = null;
+        }
         const { shapeFlag } = n2;
         switch (n2.type) {
             case Fragment:
@@ -810,7 +858,7 @@ function createRenderer(options) {
                 if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
                     processElement(n1, n2, container, parentComponent, anchor);
                 }
-                else if (shapeFlag & 2 /* ShapeFlags.STATEFUL_COMPONENT */) {
+                else if (shapeFlag & 6 /* ShapeFlags.COMPONENT */) {
                     processComponent(n1, n2, container, parentComponent, anchor);
                 }
                 break;
@@ -849,8 +897,8 @@ function createRenderer(options) {
         const c1 = n1 && n1.children;
         const { shapeFlag } = n2;
         const c2 = n2.children;
-        if (shapeFlag & 4 /* ShapeFlags.TEXT_CHILDREN */) {
-            if (prevShapeFlag & 8 /* ShapeFlags.ARRAY_CHILDREN */) {
+        if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
+            if (prevShapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
                 //老的是array，新的是text
                 unmountChildren(c1);
                 hostSetElementText(container, c2);
@@ -863,7 +911,7 @@ function createRenderer(options) {
             }
         }
         else {
-            if (prevShapeFlag & 4 /* ShapeFlags.TEXT_CHILDREN */) {
+            if (prevShapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
                 //老的是text，新的是array
                 hostSetElementText(container, '');
                 mountChildren(c2, container, parentComponent, anchor);
@@ -878,9 +926,6 @@ function createRenderer(options) {
         const l2 = c2.length;
         let e1 = c1.length - 1;
         let e2 = l2 - 1;
-        function isSameVNodeType(n1, n2) {
-            return n1.type === n2.type && n1.key === n2.key;
-        }
         //对比左侧和右侧排除相同的前置节点和后置节点
         //对比左侧
         while (i <= e1 && i <= e2) {
@@ -1039,12 +1084,6 @@ function createRenderer(options) {
             }
         }
     }
-    function unmountChildren(children) {
-        for (let item of children) {
-            const el = item.el;
-            hostRemove(el);
-        }
-    }
     function patchProps(el, oldProps, newProps) {
         if (oldProps !== newProps) {
             for (const key in newProps) {
@@ -1075,11 +1114,11 @@ function createRenderer(options) {
             const val = props[key];
             hostPatchProp(el, key, null, val);
         }
-        if (shapeFlag & 4 /* ShapeFlags.TEXT_CHILDREN */) {
+        if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
             //如果children是字符串，就直接显示
             el.textContent = children;
         }
-        else if (shapeFlag & 8 /* ShapeFlags.ARRAY_CHILDREN */) {
+        else if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
             //如果children是数组，说明是子元素，继续调用patch渲染
             mountChildren(vnode.children, el, parentComponent, anchor);
         }
@@ -1088,9 +1127,13 @@ function createRenderer(options) {
         hostInsert(el, container, anchor);
     }
     function mountChildren(children, container, parentComponent, anchor) {
-        children.forEach((vnode) => {
-            patch(null, vnode, container, parentComponent, anchor);
-        });
+        // children.forEach((vnode) => {
+        //   patch(null, vnode, container, parentComponent, anchor)
+        // })
+        for (let i = 0; i < children.length; i++) {
+            const child = (children[i] = normalizeVNode(children[i]));
+            patch(null, child, container, parentComponent, anchor);
+        }
     }
     //处理组件类型的vnode
     function processComponent(n1, n2, container, parentComponent, anchor) {
@@ -1126,16 +1169,47 @@ function createRenderer(options) {
         //执行render方法
         setupRenderEffect(instance, initialVnode, container, anchor);
     }
+    function unmount(vnode, parentComponent) {
+        const { type, props, children, shapeFlag, el } = vnode;
+        if (shapeFlag && shapeFlag & 6 /* ShapeFlags.COMPONENT */) {
+            unmountComponent(vnode.component);
+        }
+        else {
+            hostRemove(el);
+        }
+    }
+    function unmountChildren(children, parentComponent) {
+        for (let child of children) {
+            unmount(child);
+            // const el = child.el
+            // hostRemove(el)
+        }
+    }
+    function unmountComponent(instance, parentComponent) {
+        const { subTree } = instance;
+        unmount(subTree);
+    }
     function setupRenderEffect(instance, initialVnode, container, anchor) {
         //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
         //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
         //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
         instance.update = effect(() => {
+            const { type, vnode, proxy, props } = instance;
+            let { render } = instance;
             //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
             if (!instance.isMounted) {
-                //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
-                const { proxy } = instance;
-                const subTree = (instance.subTree = instance.render.call(proxy, proxy));
+                let subTree;
+                if (vnode.shapeFlag &&
+                    vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
+                    //如果是函数组件，组件的type为() => {...}，就是渲染函数
+                    render = type;
+                    subTree = normalizeVNode(render(props));
+                }
+                else {
+                    //对于有状态组件，render函数就是instance.render
+                    //把proxy对象挂载到render方法上（通过call指定render方法里this的值）
+                    subTree = instance.subTree = normalizeVNode(render.call(proxy, proxy));
+                }
                 //vnode->element->mountElement
                 //拿到组件的子组件，再交给patch方法处理
                 patch(null, subTree, container, instance, anchor);
@@ -1143,25 +1217,35 @@ function createRenderer(options) {
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
                 //组件挂载完毕后执行mounted生命周期
-                instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED].forEach(hook => hook());
+                instance[LifecycleHooks.MOUNTED] &&
+                    instance[LifecycleHooks.MOUNTED].forEach((hook) => hook());
                 instance.subTree = subTree;
                 instance.isMounted = true;
             }
             else {
                 //拿到更新后的vnode(next)和更新前的vnode
-                const { next, vnode } = instance;
+                const { type, vnode, proxy, props, next } = instance;
+                let { render } = instance;
+                let subTree;
                 if (next) {
                     //vnode上的el属性只在mount的时候由subTree.el赋值，所以这里update的时候要给next.el赋值
                     next.el = vnode.el;
                     updateComponentPreRender(instance, next);
                 }
-                const { proxy } = instance;
-                const subTree = instance.render.call(proxy, proxy);
+                if (vnode.shapeFlag &&
+                    vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
+                    render = type;
+                    subTree = normalizeVNode(render(props));
+                }
+                else {
+                    subTree = normalizeVNode(render.call(proxy, proxy));
+                }
                 const prevSubTree = instance.subTree;
                 instance.subTree = subTree;
                 patch(prevSubTree, subTree, container, instance, anchor);
                 //组件更新完毕后执行updated生命周期
-                instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED].forEach(hook => hook());
+                instance[LifecycleHooks.UPDATED] &&
+                    instance[LifecycleHooks.UPDATED].forEach((hook) => hook());
             }
         }, {
             scheduler() {
