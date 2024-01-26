@@ -672,6 +672,10 @@ function defineAsyncComponent(source) {
             const loaded = ref(false);
             const instance = currentInstance;
             loader().then((comp) => {
+                //如果是用import()方法导入的异步组件，得到的comp是一个模块，真实组件实例在模块的default属性上
+                if (comp[Symbol.toStringTag] === 'Module') {
+                    comp = comp.default;
+                }
                 resolvedComp = comp;
                 loaded.value = true;
             });
@@ -1181,8 +1185,6 @@ function createRenderer(options) {
     function unmountChildren(children, parentComponent) {
         for (let child of children) {
             unmount(child);
-            // const el = child.el
-            // hostRemove(el)
         }
     }
     function unmountComponent(instance, parentComponent) {
