@@ -19,6 +19,7 @@ import { effect } from '@my-simplified-vue/reactivity'
 import { shouldUpdateComponent } from './componentUpdateUtils'
 import { queueJobs } from './scheduler'
 import { LifecycleHooks } from './enums'
+import { isKeepAlive } from './components/KeepAlive'
 
 export function createRenderer(options) {
   const {
@@ -401,17 +402,35 @@ export function createRenderer(options) {
     }
   }
 
-  function mountComponent(initialVnode, container, parentComponent, anchor) {
+  const internals = {
+    p: patch,
+    um: unmount,
+    m: move,
+    mt: mountComponent,
+    mc: mountChildren,
+    pc: patchChildren,
+  }
+
+  function mountComponent(
+    initialVNode: VNode,
+    container,
+    parentComponent,
+    anchor
+  ) {
     //创建一个组件实例
     //同时把组件实例赋值给vnode上的component属性，在之后更新组件时会用到
-    const instance = (initialVnode.component = createComponentInstance(
-      initialVnode,
+    const instance = (initialVNode.component = createComponentInstance(
+      initialVNode,
       parentComponent
     ))
+    //如果组件是KeepAlive的，就在ctx上下文中注入一些方法
+    if (isKeepAlive(initialVNode)) {
+      instance.ctx.renderer = internals
+    }
     //初始化组件
     setupComponent(instance)
     //执行render方法
-    setupRenderEffect(instance, initialVnode, container, anchor)
+    setupRenderEffect(instance, initialVNode, container, anchor)
   }
 
   function unmount(
@@ -441,6 +460,16 @@ export function createRenderer(options) {
   ) {
     const { subTree } = instance
     unmount(subTree, instance)
+  }
+
+  //移动节点的方法，用于将keepAlive节点移动到隐藏的容器中
+  function move(vnode: VNode, container, anchor) {
+    const { el, type, children, shapeFlag } = vnode
+    if (shapeFlag && shapeFlag & ShapeFlags.COMPONENT) {
+      move(vnode.component.subTree, container, anchor)
+      return
+    }
+    hostInsert(el, container, anchor)
   }
 
   function setupRenderEffect(

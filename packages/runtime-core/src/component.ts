@@ -24,6 +24,7 @@ export interface ComponentInternalInstance {
   proxy: any
   [LifecycleHooks.MOUNTED]: Function[] | null
   [LifecycleHooks.UPDATED]: Function[] | null
+  ctx: Record<string, unknown>
 }
 
 export interface ComponentOptions {
@@ -54,6 +55,7 @@ export function createComponentInstance(vnode: VNode, parent) {
     proxy: null,
     [LifecycleHooks.MOUNTED]: null,
     [LifecycleHooks.UPDATED]: null,
+    ctx: {},
   }
   //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
   //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B

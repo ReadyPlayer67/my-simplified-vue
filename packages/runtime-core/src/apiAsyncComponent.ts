@@ -32,9 +32,6 @@ export function defineAsyncComponent(
         loaded.value = true
       })
       return () => {
-        // return loaded.value
-        //   ? createInnerComp(resolvedComp, instance)
-        //   : createVNode('div', {}, 'Loading...')
         if (loaded.value) {
           return createInnerComp(resolvedComp, instance)
         } else if (loadingComponent) {

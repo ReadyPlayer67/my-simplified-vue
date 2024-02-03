@@ -6,4 +6,5 @@ export const enum ShapeFlags {
   ARRAY_CHILDREN = 1 << 4,
   SLOT_CHILDREN = 1 << 5,
   COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTIONAL_COMPONENT,
+  COMPONENT_SHOULD_KEEP_ALIVE = 1 << 8,
 }

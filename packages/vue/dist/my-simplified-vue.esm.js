@@ -97,6 +97,27 @@ function h(type, props, children) {
     return createVNode(type, props, children);
 }
 
+//判断一个组件是否是KeepAlive组件
+const isKeepAlive = (vnode) => vnode.type.__isKeepAlive;
+const KeepAlive = {
+    __isKeepAlive: true,
+    setup(props, { slots }) {
+        return () => {
+            const children = slots.default();
+            const rawVNode = children[0];
+            if (children.length > 1) {
+                console.warn('KeepAlive 只能有一个子节点');
+                return children;
+            }
+            else if (!(rawVNode.shapeFlag & 6 /* ShapeFlags.COMPONENT */)) {
+                //如果子节点不是组件，无法缓存，直接渲染
+                return rawVNode;
+            }
+            return rawVNode;
+        };
+    },
+};
+
 const ITERATE_KEY = Symbol('');
 let activeEffect; //用一个全局变量表示当前get操作触发的effect
 let shouldTrack;
@@ -570,6 +591,7 @@ function createComponentInstance(vnode, parent) {
         proxy: null,
         [LifecycleHooks.MOUNTED]: null,
         [LifecycleHooks.UPDATED]: null,
+        ctx: {},
     };
     //这里使用了bind的偏函数功能，会给instance.emit添加一个新的参数instance并放在第一位
     //https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Function/bind#%E7%A4%BA%E4%BE%8B
@@ -676,9 +698,6 @@ function defineAsyncComponent(source) {
                 loaded.value = true;
             });
             return () => {
-                // return loaded.value
-                //   ? createInnerComp(resolvedComp, instance)
-                //   : createVNode('div', {}, 'Loading...')
                 if (loaded.value) {
                     return createInnerComp(resolvedComp, instance);
                 }
@@ -1160,14 +1179,26 @@ function createRenderer(options) {
             instance.vnode = n2;
         }
     }
-    function mountComponent(initialVnode, container, parentComponent, anchor) {
+    const internals = {
+        p: patch,
+        um: unmount,
+        m: move,
+        mt: mountComponent,
+        mc: mountChildren,
+        pc: patchChildren,
+    };
+    function mountComponent(initialVNode, container, parentComponent, anchor) {
         //创建一个组件实例
         //同时把组件实例赋值给vnode上的component属性，在之后更新组件时会用到
-        const instance = (initialVnode.component = createComponentInstance(initialVnode, parentComponent));
+        const instance = (initialVNode.component = createComponentInstance(initialVNode, parentComponent));
+        //如果组件是KeepAlive的，就在ctx上下文中注入一些方法
+        if (isKeepAlive(initialVNode)) {
+            instance.ctx.renderer = internals;
+        }
         //初始化组件
         setupComponent(instance);
         //执行render方法
-        setupRenderEffect(instance, initialVnode, container, anchor);
+        setupRenderEffect(instance, initialVNode, container, anchor);
     }
     function unmount(vnode, parentComponent) {
         const { type, props, children, shapeFlag, el } = vnode;
@@ -1186,6 +1217,15 @@ function createRenderer(options) {
     function unmountComponent(instance, parentComponent) {
         const { subTree } = instance;
         unmount(subTree);
+    }
+    //移动节点的方法，用于将keepAlive节点移动到隐藏的容器中
+    function move(vnode, container, anchor) {
+        const { el, type, children, shapeFlag } = vnode;
+        if (shapeFlag && shapeFlag & 6 /* ShapeFlags.COMPONENT */) {
+            move(vnode.component.subTree, container, anchor);
+            return;
+        }
+        hostInsert(el, container, anchor);
     }
     function setupRenderEffect(instance, initialVnode, container, anchor) {
         //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
@@ -1393,6 +1433,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     __proto__: null,
     createApp: createApp,
     h: h,
+    KeepAlive: KeepAlive,
     defineAsyncComponent: defineAsyncComponent,
     onMounted: onMounted,
     onUpdated: onUpdated,
@@ -1841,4 +1882,4 @@ function compileToFunction(template) {
 }
 registerRuntimeCompiler(compileToFunction);
 
-export { createApp, createVNode as createElementVNode, createRenderer, createTextVNode, defineAsyncComponent, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
+export { KeepAlive, createApp, createVNode as createElementVNode, createRenderer, createTextVNode, defineAsyncComponent, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
