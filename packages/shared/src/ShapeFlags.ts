@@ -6,5 +6,6 @@ export const enum ShapeFlags {
   ARRAY_CHILDREN = 1 << 4,
   SLOT_CHILDREN = 1 << 5,
   COMPONENT = ShapeFlags.STATEFUL_COMPONENT | ShapeFlags.FUNCTIONAL_COMPONENT,
-  COMPONENT_SHOULD_KEEP_ALIVE = 1 << 8,
+  COMPONENT_SHOULD_KEEP_ALIVE = 1 << 8,  //表示组件应当被KeepAlive
+  COMPONENT_KEPT_ALIVE = 1 << 9,  //表示组件已经被缓存
 }

@@ -97,27 +97,6 @@ function h(type, props, children) {
     return createVNode(type, props, children);
 }
 
-//判断一个组件是否是KeepAlive组件
-const isKeepAlive = (vnode) => vnode.type.__isKeepAlive;
-const KeepAlive = {
-    __isKeepAlive: true,
-    setup(props, { slots }) {
-        return () => {
-            const children = slots.default();
-            const rawVNode = children[0];
-            if (children.length > 1) {
-                console.warn('KeepAlive 只能有一个子节点');
-                return children;
-            }
-            else if (!(rawVNode.shapeFlag & 6 /* ShapeFlags.COMPONENT */)) {
-                //如果子节点不是组件，无法缓存，直接渲染
-                return rawVNode;
-            }
-            return rawVNode;
-        };
-    },
-};
-
 const ITERATE_KEY = Symbol('');
 let activeEffect; //用一个全局变量表示当前get操作触发的effect
 let shouldTrack;
@@ -678,6 +657,50 @@ function registerRuntimeCompiler(_compiler) {
     compiler = _compiler;
 }
 
+//判断一个组件是否是KeepAlive组件
+const isKeepAlive = (vnode) => vnode.type.__isKeepAlive;
+const KeepAlive = {
+    __isKeepAlive: true,
+    setup(props, { slots }) {
+        const instance = getCurrentInstance();
+        const sharedContext = instance.ctx;
+        //创建一个Map用来缓存组件
+        const cache = new Map();
+        const { renderer: { m: move, o: { createElement }, }, } = sharedContext;
+        const storageContainer = createElement('div');
+        sharedContext.activate = (vnode, container, anchor) => {
+            move(vnode, container, anchor);
+        };
+        sharedContext.deactivate = (vnode) => {
+            move(vnode, storageContainer, null);
+        };
+        return () => {
+            const children = slots.default();
+            const rawVNode = children[0];
+            if (children.length > 1) {
+                console.warn('KeepAlive 只能有一个子节点');
+                return children;
+            }
+            else if (!(rawVNode.shapeFlag & 6 /* ShapeFlags.COMPONENT */)) {
+                //如果子节点不是组件，无法缓存，直接渲染
+                return rawVNode;
+            }
+            const key = rawVNode.key == null ? rawVNode.type : rawVNode.key;
+            const cachedVNode = cache.get(key);
+            if (cachedVNode) {
+                rawVNode.el = cachedVNode.el;
+                rawVNode.component = cachedVNode.component;
+                rawVNode.shapeFlag |= 512 /* ShapeFlags.COMPONENT_KEPT_ALIVE */;
+            }
+            else {
+                cache.set(key, rawVNode);
+            }
+            rawVNode.shapeFlag |= 256 /* ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE */;
+            return rawVNode;
+        };
+    },
+};
+
 function defineAsyncComponent(source) {
     if (isFunction(source)) {
         source = { loader: source };
@@ -861,7 +884,7 @@ function createRenderer(options) {
         console.log('patch');
         if (n1 && !isSameVNodeType(n1, n2)) {
             // anchor = getNextHostNode(n1)
-            unmount(n1);
+            unmount(n1, parentComponent);
             n1 = null;
         }
         const { shapeFlag } = n2;
@@ -885,7 +908,12 @@ function createRenderer(options) {
     }
     //处理Fragment类型节点
     function processFragment(n1, n2, container, parentComponent, anchor) {
-        mountChildren(n2.children, container, parentComponent, anchor);
+        if (n1 == null) {
+            mountChildren(n2.children, container, parentComponent, anchor);
+        }
+        else {
+            patchChildren(n1, n2, container, parentComponent, anchor);
+        }
     }
     //处理Text类型节点
     function processText(n1, n2, container) {
@@ -919,7 +947,7 @@ function createRenderer(options) {
         if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
             if (prevShapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
                 //老的是array，新的是text
-                unmountChildren(c1);
+                unmountChildren(c1, parentComponent);
                 hostSetElementText(container, c2);
             }
             else {
@@ -1157,8 +1185,14 @@ function createRenderer(options) {
     //处理组件类型的vnode
     function processComponent(n1, n2, container, parentComponent, anchor) {
         if (!n1) {
-            //挂载虚拟节点
-            mountComponent(n2, container, parentComponent, anchor);
+            //如果组件是被KeepAlive缓存的，直接激活而不是mount
+            if (n2.shapeFlag & 512 /* ShapeFlags.COMPONENT_KEPT_ALIVE */) {
+                parentComponent.ctx.activate(n2, container, anchor);
+            }
+            else {
+                //挂载虚拟节点
+                mountComponent(n2, container, parentComponent, anchor);
+            }
         }
         else {
             updateComponent(n1, n2);
@@ -1180,12 +1214,13 @@ function createRenderer(options) {
         }
     }
     const internals = {
-        p: patch,
-        um: unmount,
+        // p: patch,
+        // um: unmount,
         m: move,
-        mt: mountComponent,
-        mc: mountChildren,
-        pc: patchChildren,
+        // mt: mountComponent,
+        // mc: mountChildren,
+        // pc: patchChildren,
+        o: options,
     };
     function mountComponent(initialVNode, container, parentComponent, anchor) {
         //创建一个组件实例
@@ -1202,6 +1237,11 @@ function createRenderer(options) {
     }
     function unmount(vnode, parentComponent) {
         const { type, props, children, shapeFlag, el } = vnode;
+        //如果组件是被KeepAlive包裹的，不要卸载而是失活
+        if (shapeFlag & 256 /* ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE */) {
+            parentComponent.ctx.deactivate(vnode);
+            return;
+        }
         if (shapeFlag && shapeFlag & 6 /* ShapeFlags.COMPONENT */) {
             unmountComponent(vnode.component);
         }
@@ -1211,12 +1251,12 @@ function createRenderer(options) {
     }
     function unmountChildren(children, parentComponent) {
         for (let child of children) {
-            unmount(child);
+            unmount(child, parentComponent);
         }
     }
     function unmountComponent(instance, parentComponent) {
         const { subTree } = instance;
-        unmount(subTree);
+        unmount(subTree, instance);
     }
     //移动节点的方法，用于将keepAlive节点移动到隐藏的容器中
     function move(vnode, container, anchor) {

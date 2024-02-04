@@ -19,7 +19,7 @@ import { effect } from '@my-simplified-vue/reactivity'
 import { shouldUpdateComponent } from './componentUpdateUtils'
 import { queueJobs } from './scheduler'
 import { LifecycleHooks } from './enums'
-import { isKeepAlive } from './components/KeepAlive'
+import { KeepAliveContext, isKeepAlive } from './components/KeepAlive'
 
 export function createRenderer(options) {
   const {
@@ -76,7 +76,11 @@ export function createRenderer(options) {
     parentComponent,
     anchor
   ) {
-    mountChildren(n2.children, container, parentComponent, anchor)
+    if (n1 == null) {
+      mountChildren(n2.children, container, parentComponent, anchor)
+    } else {
+      patchChildren(n1, n2, container, parentComponent, anchor)
+    }
   }
 
   //处理Text类型节点
@@ -380,8 +384,17 @@ export function createRenderer(options) {
     anchor
   ) {
     if (!n1) {
-      //挂载虚拟节点
-      mountComponent(n2, container, parentComponent, anchor)
+      //如果组件是被KeepAlive缓存的，直接激活而不是mount
+      if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
+        ;(parentComponent.ctx as KeepAliveContext).activate(
+          n2,
+          container,
+          anchor
+        )
+      } else {
+        //挂载虚拟节点
+        mountComponent(n2, container, parentComponent, anchor)
+      }
     } else {
       updateComponent(n1, n2)
     }
@@ -403,12 +416,13 @@ export function createRenderer(options) {
   }
 
   const internals = {
-    p: patch,
-    um: unmount,
+    // p: patch,
+    // um: unmount,
     m: move,
-    mt: mountComponent,
-    mc: mountChildren,
-    pc: patchChildren,
+    // mt: mountComponent,
+    // mc: mountChildren,
+    // pc: patchChildren,
+    o: options,
   }
 
   function mountComponent(
@@ -438,6 +452,11 @@ export function createRenderer(options) {
     parentComponent: ComponentInternalInstance | null
   ) {
     const { type, props, children, shapeFlag, el } = vnode
+    //如果组件是被KeepAlive包裹的，不要卸载而是失活
+    if (shapeFlag & ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE) {
+      ;(parentComponent!.ctx as unknown as KeepAliveContext).deactivate(vnode)
+      return
+    }
     if (shapeFlag && shapeFlag & ShapeFlags.COMPONENT) {
       unmountComponent(vnode.component, parentComponent)
     } else {
