@@ -12,9 +12,9 @@ export const Text = Symbol('Text')
 
 export { createVNode as createElementVNode }
 
-export interface VNode {
+export interface VNode<ExtraProps = { [key: string]: any }> {
   type: string | typeof Fragment | typeof Text | ComponentOptions
-  props: Record<string, unknown> | null
+  props: ExtraProps | null
   key: string | number | symbol | null
   children: string | null | VNode[]
   component: any
