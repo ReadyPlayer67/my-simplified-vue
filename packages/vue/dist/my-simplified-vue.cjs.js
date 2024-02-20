@@ -31,6 +31,27 @@ const toHandlerKey = (str) => {
     return str ? 'on' + capitalize(camelize(str)) : '';
 };
 
+const isTeleport = (type) => type.__isTeleport;
+const Teleport = {
+    name: 'Teleport',
+    __isTeleport: true,
+    process(n1, n2, container, parentComponent, anchor, internals) {
+        const { mc: mountChildren, pc: patchChildren, o: { insert, querySelector }, } = internals;
+        if (n1 == null) {
+            const targetSelector = n2.props && n2.props.to;
+            if (isString(targetSelector)) {
+                const target = querySelector(targetSelector);
+                if (target) {
+                    mountChildren(n2.children, target, parentComponent, anchor);
+                }
+            }
+        }
+        else {
+            patchChildren(n1, n2, container, parentComponent, anchor);
+        }
+    },
+};
+
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 const Fragment = Symbol('Fragment');
 const Text = Symbol('Text');
@@ -69,6 +90,9 @@ function getShapeFlag(type) {
     ////如果vnode的type是字符串，他就是element类型，否则就是component
     if (typeof type === 'string') {
         return 1 /* ShapeFlags.ELEMENT */;
+    }
+    else if (isTeleport(type)) {
+        return 64 /* ShapeFlags.TELEPORT */;
     }
     else if (isObject(type)) {
         return 4 /* ShapeFlags.STATEFUL_COMPONENT */;
@@ -907,6 +931,9 @@ function createRenderer(options) {
                 else if (shapeFlag & 6 /* ShapeFlags.COMPONENT */) {
                     processComponent(n1, n2, container, parentComponent, anchor);
                 }
+                else if (shapeFlag & 64 /* ShapeFlags.TELEPORT */) {
+                    n2.type.process(n1, n2, container, parentComponent, anchor, internals);
+                }
                 break;
         }
     }
@@ -1222,8 +1249,8 @@ function createRenderer(options) {
         // um: unmount,
         m: move,
         // mt: mountComponent,
-        // mc: mountChildren,
-        // pc: patchChildren,
+        mc: mountChildren,
+        pc: patchChildren,
         o: options,
     };
     function mountComponent(initialVNode, container, parentComponent, anchor) {
@@ -1460,6 +1487,9 @@ function remove(children) {
 function setElementText(el, children) {
     el.textContent = children;
 }
+function querySelector(selector) {
+    return document.querySelector(selector);
+}
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
 const renderer = createRenderer({
@@ -1468,6 +1498,7 @@ const renderer = createRenderer({
     insert,
     remove,
     setElementText,
+    querySelector,
 });
 function createApp(...args) {
     return renderer.createApp(...args);
@@ -1478,6 +1509,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     createApp: createApp,
     h: h,
     KeepAlive: KeepAlive,
+    Teleport: Teleport,
     defineAsyncComponent: defineAsyncComponent,
     onMounted: onMounted,
     onUpdated: onUpdated,
@@ -1927,6 +1959,7 @@ function compileToFunction(template) {
 registerRuntimeCompiler(compileToFunction);
 
 exports.KeepAlive = KeepAlive;
+exports.Teleport = Teleport;
 exports.createApp = createApp;
 exports.createElementVNode = createVNode;
 exports.createRenderer = createRenderer;

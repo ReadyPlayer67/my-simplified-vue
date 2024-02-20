@@ -20,6 +20,14 @@ import { shouldUpdateComponent } from './componentUpdateUtils'
 import { queueJobs } from './scheduler'
 import { LifecycleHooks } from './enums'
 import { KeepAliveContext, isKeepAlive } from './components/KeepAlive'
+import { Teleport, TeleportVNode } from './components/Teleport'
+
+export interface RendererInternals {
+  m: Function
+  mc: Function
+  pc: Function
+  o: any
+}
 
 export function createRenderer(options) {
   const {
@@ -63,6 +71,15 @@ export function createRenderer(options) {
           processElement(n1, n2, container, parentComponent, anchor)
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
           processComponent(n1, n2, container, parentComponent, anchor)
+        } else if (shapeFlag & ShapeFlags.TELEPORT) {
+          ;(n2.type as typeof Teleport).process(
+            n1 as TeleportVNode,
+            n2 as TeleportVNode,
+            container,
+            parentComponent,
+            anchor,
+            internals
+          )
         }
         break
     }
@@ -415,13 +432,13 @@ export function createRenderer(options) {
     }
   }
 
-  const internals = {
+  const internals: RendererInternals = {
     // p: patch,
     // um: unmount,
     m: move,
     // mt: mountComponent,
-    // mc: mountChildren,
-    // pc: patchChildren,
+    mc: mountChildren,
+    pc: patchChildren,
     o: options,
   }
 

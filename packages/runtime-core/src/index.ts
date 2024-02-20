@@ -1,6 +1,7 @@
 //导出h方法
 export { h } from './h'
 export { KeepAlive } from './components/KeepAlive'
+export { Teleport } from './components/Teleport'
 export { defineAsyncComponent } from './apiAsyncComponent'
 export { onMounted, onUpdated } from './apiLifecycle'
 export { renderSlots } from './helpers/renderSlots'

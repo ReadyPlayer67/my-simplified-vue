@@ -1,9 +1,10 @@
 import { ShapeFlags } from '@my-simplified-vue/shared'
 import { VNode } from '../vnode'
 import { getCurrentInstance } from '../component'
+import { RendererInternals } from '../renderer'
 
 export interface KeepAliveContext {
-  renderer: any
+  renderer: RendererInternals
   activate: (vnode: VNode, container: any, anchor: any) => void
   deactivate: (vnode: VNode) => void
 }

@@ -37,6 +37,10 @@ function setElementText(el, children) {
   el.textContent = children
 }
 
+function querySelector(selector: string) {
+  return document.querySelector(selector)
+}
+
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
 const renderer: any = createRenderer({
@@ -45,6 +49,7 @@ const renderer: any = createRenderer({
   insert,
   remove,
   setElementText,
+  querySelector,
 })
 export function createApp(...args) {
   return renderer.createApp(...args)
