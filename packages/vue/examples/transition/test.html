@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      .box {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+      }
+      .enter-active {
+        transition: 1s;
+      }
+      .enter-from {
+        transform: translateX(100px);
+        opacity: 0;
+      }
+      .enter-to {
+        transform: translateX(0px);
+        opacity: 1;
+      }
+      .leave-from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      .leave-to {
+        transform: translateX(100px);
+        opacity: 0;
+      }
+      .leave-active {
+        transition: 1s;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const el = document.createElement('div')
+      el.classList.add('box')
+      //在 DOM 元素被添加到页面之前，将初始状态和运动过程定义到元素上
+      el.classList.add('enter-active')
+      el.classList.add('enter-from')
+      document.body.appendChild(el)
+      // 在下一帧切换元素的状态
+      requestAnimationFrame(() => {
+        el.classList.remove('enter-from') // 移除 enter-from
+        el.classList.add('enter-to') // 添加 enter-to
+        //transition效果完成后，会触发transitionend事件
+        el.addEventListener('transitionend', () => {
+          el.classList.remove('enter-active')
+          el.classList.remove('enter-to')
+        })
+      })
+      // 强制 reflow：使初始状态生效
+      document.body.offsetHeight
+      el.addEventListener('click', () => {
+        const performRemove = () => el.parentNode.removeChild(el)
+        el.classList.add('leave-active')
+        el.classList.add('leave-from')
+        requestAnimationFrame(() => {
+          el.classList.remove('leave-from')
+          el.classList.add('leave-to')
+          el.addEventListener('transitionend', () => {
+            el.classList.remove('leave-to')
+            el.classList.remove('leave-active')
+            performRemove()
+          })
+        })
+      })
+    </script>
+  </body>
+</html>
