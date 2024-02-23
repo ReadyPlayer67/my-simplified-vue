@@ -21,6 +21,7 @@ export interface VNode<ExtraProps = { [key: string]: any }> {
   component: any
   shapeFlag: number
   el: Record<string, any> | null
+  transition?: Record<string,any>
 }
 
 export function createVNode(type, props?, children?) {

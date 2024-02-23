@@ -2,6 +2,7 @@
 export { h } from './h'
 export { KeepAlive } from './components/KeepAlive'
 export { Teleport } from './components/Teleport'
+export { Transition } from './components/Transition'
 export { defineAsyncComponent } from './apiAsyncComponent'
 export { onMounted, onUpdated } from './apiLifecycle'
 export { renderSlots } from './helpers/renderSlots'

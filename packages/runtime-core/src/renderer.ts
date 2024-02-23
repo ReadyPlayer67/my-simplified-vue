@@ -361,8 +361,8 @@ export function createRenderer(options) {
     }
   }
 
-  function mountElement(vnode, container, parentComponent, anchor) {
-    const { type, props, children, shapeFlag } = vnode
+  function mountElement(vnode: VNode, container, parentComponent, anchor) {
+    const { type, props, children, shapeFlag, transition } = vnode
     //使用连续赋值，把el赋值给vnode.el
     //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
     const el = (vnode.el = hostCreateElement(type))
@@ -376,6 +376,10 @@ export function createRenderer(options) {
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       //如果children是数组，说明是子元素，继续调用patch渲染
       mountChildren(vnode.children, el, parentComponent, anchor)
+    }
+    const needCallTransitionHooks = vnode.transition
+    if(needCallTransitionHooks){
+      vnode.transition!.beforeEnter()
     }
     //把element append到页面上
     // container.append(el)

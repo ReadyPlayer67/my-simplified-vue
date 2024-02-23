@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Title</title>
+    <style>
+      .box {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+      }
+      .enter-active {
+        transition: 1s;
+      }
+      .enter-from {
+        transform: translateX(100px);
+        opacity: 0;
+      }
+      .enter-to {
+        transform: translateX(0px);
+        opacity: 1;
+      }
+      .leave-from {
+        transform: translateX(0);
+        opacity: 1;
+      }
+      .leave-to {
+        transform: translateX(100px);
+        opacity: 0;
+      }
+      .leave-active {
+        transition: 1s;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script src="main.js" type="module"></script>
+  </body>
+</html>

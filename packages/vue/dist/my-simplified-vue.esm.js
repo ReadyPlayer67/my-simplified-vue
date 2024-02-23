@@ -32,8 +32,9 @@ const Teleport = {
     name: 'Teleport',
     __isTeleport: true,
     process(n1, n2, container, parentComponent, anchor, internals) {
-        const { mc: mountChildren, pc: patchChildren, o: { insert, querySelector }, } = internals;
+        const { mc: mountChildren, pc: patchChildren, o: { querySelector }, } = internals;
         if (n1 == null) {
+            //根据to属性，获取插入的目标节点
             const targetSelector = n2.props && n2.props.to;
             if (isString(targetSelector)) {
                 const target = querySelector(targetSelector);
@@ -721,6 +722,16 @@ const KeepAlive = {
             }
             rawVNode.shapeFlag |= 256 /* ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE */;
             return rawVNode;
+        };
+    },
+};
+
+const Transition = {
+    name: 'Transition',
+    setup(props, { slots }) {
+        return () => {
+            const children = slots.default();
+            return children;
         };
     },
 };
@@ -1506,6 +1517,7 @@ var runtimeDom = /*#__PURE__*/Object.freeze({
     h: h,
     KeepAlive: KeepAlive,
     Teleport: Teleport,
+    Transition: Transition,
     defineAsyncComponent: defineAsyncComponent,
     onMounted: onMounted,
     onUpdated: onUpdated,
@@ -1954,4 +1966,4 @@ function compileToFunction(template) {
 }
 registerRuntimeCompiler(compileToFunction);
 
-export { KeepAlive, Teleport, createApp, createVNode as createElementVNode, createRenderer, createTextVNode, defineAsyncComponent, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
+export { KeepAlive, Teleport, Transition, createApp, createVNode as createElementVNode, createRenderer, createTextVNode, defineAsyncComponent, effect, getCurrentInstance, h, inject, isProxy, isReactive, isReadonly, isRef, nextTick, onMounted, onUpdated, provide, proxyRefs, reactive, readonly, ref, registerRuntimeCompiler, renderSlots, shallowReadonly, toDisplayString, unRef };
