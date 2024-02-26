@@ -22,6 +22,12 @@ import { LifecycleHooks } from './enums'
 import { KeepAliveContext, isKeepAlive } from './components/KeepAlive'
 import { Teleport, TeleportVNode } from './components/Teleport'
 
+export interface RendererNode {
+  [key: string]: any
+}
+
+export interface RendererElement extends RendererNode {}
+
 export interface RendererInternals {
   m: Function
   mc: Function
@@ -377,13 +383,15 @@ export function createRenderer(options) {
       //如果children是数组，说明是子元素，继续调用patch渲染
       mountChildren(vnode.children, el, parentComponent, anchor)
     }
+    //如果需要执行过渡效果，在insert节点之前执行beforeEnter，插入节点后执行enter
     const needCallTransitionHooks = vnode.transition
-    if(needCallTransitionHooks){
-      vnode.transition!.beforeEnter()
+    if (needCallTransitionHooks) {
+      vnode.transition!.beforeEnter(el)
     }
     //把element append到页面上
     // container.append(el)
     hostInsert(el, container, anchor)
+    needCallTransitionHooks && vnode.transition!.enter(el)
   }
 
   function mountChildren(children, container, parentComponent, anchor) {
@@ -481,7 +489,19 @@ export function createRenderer(options) {
     if (shapeFlag && shapeFlag & ShapeFlags.COMPONENT) {
       unmountComponent(vnode.component, parentComponent)
     } else {
+      remove(vnode)
+    }
+  }
+
+  const remove = (vnode: VNode) => {
+    const { type, el, transition } = vnode
+    const performRemove = () => {
       hostRemove(el)
+    }
+    if (transition) {
+      transition.leave(el!, performRemove)
+    } else {
+      performRemove()
     }
   }
 

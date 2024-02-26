@@ -6,6 +6,8 @@ import {
 } from '@my-simplified-vue/shared'
 import { ComponentOptions } from './component'
 import { isTeleport } from './components/Teleport'
+import { TransitionHooks } from './components/Transition'
+import { RendererElement } from './renderer'
 
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 export const Fragment = Symbol('Fragment')
@@ -20,8 +22,8 @@ export interface VNode<ExtraProps = { [key: string]: any }> {
   children: string | null | VNode[]
   component: any
   shapeFlag: number
-  el: Record<string, any> | null
-  transition?: Record<string,any>
+  el: RendererElement | null
+  transition?: TransitionHooks
 }
 
 export function createVNode(type, props?, children?) {

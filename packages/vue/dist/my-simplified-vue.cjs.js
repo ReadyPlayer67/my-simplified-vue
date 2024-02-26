@@ -735,7 +735,43 @@ const Transition = {
     setup(props, { slots }) {
         return () => {
             const children = slots.default();
-            return children;
+            if (children.length > 1) {
+                console.warn(`<transition>组件只能有一个子节点`);
+                return;
+            }
+            const child = children[0];
+            child.transition = {
+                beforeEnter(el) {
+                    el.classList.add('v-enter-from');
+                    el.classList.add('v-enter-active');
+                },
+                enter(el) {
+                    requestAnimationFrame(() => {
+                        el.classList.remove('v-enter-from');
+                        el.classList.add('v-enter-to');
+                        el.addEventListener('transitionend', () => {
+                            el.classList.remove('v-enter-to');
+                            el.classList.remove('v-enter-active');
+                        });
+                    });
+                },
+                leave(el, remove) {
+                    el.classList.add('v-leave-from');
+                    el.classList.add('v-leave-active');
+                    //强制浏览器重排，使leave-from的样式生效
+                    // document.body.offsetHeight
+                    requestAnimationFrame(() => {
+                        el.classList.remove('v-leave-from');
+                        el.classList.add('v-leave-to');
+                        el.addEventListener('transitionend', () => {
+                            el.classList.remove('v-leave-to');
+                            el.classList.remove('v-leave-active');
+                            remove();
+                        });
+                    });
+                },
+            };
+            return child;
         };
     },
 };
@@ -1195,7 +1231,7 @@ function createRenderer(options) {
         }
     }
     function mountElement(vnode, container, parentComponent, anchor) {
-        const { type, props, children, shapeFlag } = vnode;
+        const { type, props, children, shapeFlag, transition } = vnode;
         //使用连续赋值，把el赋值给vnode.el
         //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
         const el = (vnode.el = hostCreateElement(type));
@@ -1211,9 +1247,15 @@ function createRenderer(options) {
             //如果children是数组，说明是子元素，继续调用patch渲染
             mountChildren(vnode.children, el, parentComponent, anchor);
         }
+        //如果需要执行过渡效果，在insert节点之前执行beforeEnter，插入节点后执行enter
+        const needCallTransitionHooks = vnode.transition;
+        if (needCallTransitionHooks) {
+            vnode.transition.beforeEnter(el);
+        }
         //把element append到页面上
         // container.append(el)
         hostInsert(el, container, anchor);
+        needCallTransitionHooks && vnode.transition.enter(el);
     }
     function mountChildren(children, container, parentComponent, anchor) {
         // children.forEach((vnode) => {
@@ -1288,9 +1330,21 @@ function createRenderer(options) {
             unmountComponent(vnode.component);
         }
         else {
-            hostRemove(el);
+            remove(vnode);
         }
     }
+    const remove = (vnode) => {
+        const { type, el, transition } = vnode;
+        const performRemove = () => {
+            hostRemove(el);
+        };
+        if (transition) {
+            transition.leave(el, performRemove);
+        }
+        else {
+            performRemove();
+        }
+    };
     function unmountChildren(children, parentComponent) {
         for (let child of children) {
             unmount(child, parentComponent);
