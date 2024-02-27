@@ -389,7 +389,6 @@ export function createRenderer(options) {
       vnode.transition!.beforeEnter(el)
     }
     //把element append到页面上
-    // container.append(el)
     hostInsert(el, container, anchor)
     needCallTransitionHooks && vnode.transition!.enter(el)
   }

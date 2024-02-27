@@ -13,10 +13,12 @@ export const App = {
     return h('div', {}, [
       h(
         Transition,
-        {},
+        { name: 'fade' },
         {
           default: () =>
-            this.isChange ? h('div', { class: 'box' }, '') : h(() => '替代内容'),
+            this.isChange
+              ? h('div', { class: 'box' }, '')
+              : h(() => '替代内容'),
         }
       ),
     ])
