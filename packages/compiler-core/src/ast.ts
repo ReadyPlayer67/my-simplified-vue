@@ -9,6 +9,16 @@ export const enum NodeTypes {
   COMPOUND_EXPRESSION,
 }
 
+export interface Node {
+  type: NodeTypes
+  source?: string
+  children: Node[]
+  helpers?: Set<symbol>
+  content?: string
+  tag?: string
+  codegenNode?: Node
+}
+
 export function createVNodeCall(context, tag, props, children) {
   context.helper(CREATE_ELEMENT_VNODE)
   return {

@@ -6,6 +6,7 @@ export const App = {
     const isChange = ref(true)
     window.isChange = isChange
     return {
+      
       isChange,
     }
   },
