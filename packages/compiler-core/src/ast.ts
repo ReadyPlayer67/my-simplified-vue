@@ -12,9 +12,9 @@ export const enum NodeTypes {
 export interface Node {
   type: NodeTypes
   source?: string
-  children: Node[]
+  children?: Node[]
   helpers?: Set<symbol>
-  content?: string
+  content?: string | Node
   tag?: string
   codegenNode?: Node
 }

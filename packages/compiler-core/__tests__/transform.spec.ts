@@ -13,7 +13,7 @@ describe('transform', function () {
     transform(ast, {
       nodeTransforms: [plugin],
     })
-    const textNode = ast.children[0].children[0]
+    const textNode = ast.children![0].children![0]
     expect(textNode.content).toBe('hi,mini-vue')
   })
 })

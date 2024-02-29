@@ -26,11 +26,11 @@ export function transform(root: Node, options: TransformOptions) {
 
 function createCodegenNode(root: Node) {
   //获取root下的第一个节点，如果是element类型，就把element的codegenNode作为root的入口
-  const child = root.children[0]
+  const child = root.children![0]
   if (child.type === NodeTypes.ELEMENT) {
     root.codegenNode = child.codegenNode
   } else {
-    root.codegenNode = root.children[0]
+    root.codegenNode = root.children![0]
   }
 }
 
@@ -80,7 +80,7 @@ function traverseNode(node: Node, context: TransformContext) {
 }
 
 function traverseChildren(node: Node, context: TransformContext) {
-  const children = node.children
+  const children = node.children!
   for (let i = 0; i < children.length; i++) {
     traverseNode(children[i], context)
   }

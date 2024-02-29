@@ -1,8 +1,12 @@
-import { NodeTypes } from './ast'
+import { Node, NodeTypes } from './ast'
 
 const enum TagType {
   Start,
   End,
+}
+
+export interface ParserContext {
+  source: string
 }
 
 //得到抽象语法树AST
@@ -11,10 +15,10 @@ export function baseParse(content: string) {
   return createRoot(parseChildren(context, []))
 }
 
-function parseChildren(context, ancestors) {
-  let nodes: any[] = []
+function parseChildren(context: ParserContext, ancestors: Node[]) {
+  let nodes: Node[] = []
   while (!isEnd(context, ancestors)) {
-    let node
+    let node: Node | undefined = undefined
     const s = context.source
     if (s.startsWith('{{')) {
       node = parseInterpolation(context)
@@ -33,14 +37,14 @@ function parseChildren(context, ancestors) {
   return nodes
 }
 
-function isEnd(context, ancestors) {
+function isEnd(context: ParserContext, ancestors: Node[]) {
   const s = context.source
   //当source没有值或者遇到结束标签的时候，应当停止循环
   if (s.startsWith('</')) {
     //这里从后往前循环栈，因为如果标签是闭合的，头部标签一定是在栈顶的，这样循环有利于性能
     for (let i = ancestors.length - 1; i >= 0; i--) {
       const tag = ancestors[i].tag
-      if (startsWithEndTagOpen(s, tag)) {
+      if (startsWithEndTagOpen(s, tag!)) {
         return true
       }
     }
@@ -48,7 +52,7 @@ function isEnd(context, ancestors) {
   return !s
 }
 
-function parseText(context) {
+function parseText(context: ParserContext): Node {
   const endTokens = ['</', '{{']
   let endIndex = context.source.length
   for (let endToken of endTokens) {
@@ -65,13 +69,13 @@ function parseText(context) {
   }
 }
 
-function parseTextData(context, length: number) {
+function parseTextData(context: ParserContext, length: number) {
   const content = context.source.slice(0, length)
   advanceBy(context, length)
   return content
 }
 
-function parseElement(context, ancestors) {
+function parseElement(context: ParserContext, ancestors: Node[]): Node {
   //处理<div>起始标签
   const element: any = parseTag(context, TagType.Start)
   //使用一个栈ancestors记录已经处理过的头部element标签
@@ -92,14 +96,14 @@ function parseElement(context, ancestors) {
 }
 
 //判断context.source下一段内容是不是tag的闭合标签
-function startsWithEndTagOpen(source, tag) {
+function startsWithEndTagOpen(source: string, tag: string) {
   return (
     source.startsWith('</') &&
     source.slice(2, tag.length + 2).toLowerCase() === tag.toLowerCase()
   )
 }
 
-function parseTag(context, type: TagType) {
+function parseTag(context: ParserContext, type: TagType): Node | undefined {
   //利用()实现分组捕获，这样在match[1]就能拿到tag内容
   const match: any = /^<\/?([a-z]*)/i.exec(context.source)
   // console.log('match:', match)
@@ -116,7 +120,7 @@ function parseTag(context, type: TagType) {
   }
 }
 
-function parseInterpolation(context) {
+function parseInterpolation(context: ParserContext): Node {
   //定义前后两个分隔符
   const openDelimiter = '{{'
   const closeDelimiter = '}}'
@@ -143,18 +147,18 @@ function parseInterpolation(context) {
   }
 }
 
-function advanceBy(context, length: number) {
+function advanceBy(context: ParserContext, length: number) {
   context.source = context.source.slice(length)
 }
 
-function createRoot(children) {
+function createRoot(children: Node[]): Node {
   return {
     children,
     type: NodeTypes.ROOT,
   }
 }
 
-function createParserContext(content: string) {
+function createParserContext(content: string): ParserContext {
   return {
     source: content,
   }
