@@ -145,7 +145,9 @@ export function setCurrentInstance(instance: ComponentInternalInstance | null) {
   }
 }
 
-let compiler
+type CompileFunction = (template: string | object) => Function
+
+let compiler: CompileFunction | undefined
 //暴露一个方法用来给编译函数compiler赋值
 export function registerRuntimeCompiler(_compiler) {
   compiler = _compiler
