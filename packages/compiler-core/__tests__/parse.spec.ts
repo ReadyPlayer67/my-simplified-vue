@@ -8,7 +8,7 @@ describe('Parse', function () {
         test('simple interpolation',() => {
             const ast = baseParse('{{ message }}')
             //ast是root节点
-            expect(ast.children[0]).toStrictEqual({
+            expect(ast.children![0]).toStrictEqual({
                 type:NodeTypes.INTERPOLATION,
                 content:{
                     type:NodeTypes.SIMPLE_EXPRESSION,
@@ -21,7 +21,7 @@ describe('Parse', function () {
     describe('element', function () {
         it('simple element', function () {
             const ast = baseParse('<div></div>')
-            expect(ast.children[0]).toStrictEqual({
+            expect(ast.children![0]).toStrictEqual({
                 type:NodeTypes.ELEMENT,
                 tag:'div',
                 children:[]
@@ -32,7 +32,7 @@ describe('Parse', function () {
     describe('text', function () {
         it('simple text', function () {
             const ast = baseParse('some text')
-            expect(ast.children[0]).toStrictEqual({
+            expect(ast.children![0]).toStrictEqual({
                 type:NodeTypes.TEXT,
                 content:'some text'
             })
@@ -41,7 +41,7 @@ describe('Parse', function () {
 
     test('hello world',function (){
         const ast = baseParse('<div>hi,{{message}}</div>')
-        expect(ast.children[0]).toStrictEqual({
+        expect(ast.children![0]).toStrictEqual({
             type:NodeTypes.ELEMENT,
             tag:'div',
             children:[
@@ -62,7 +62,7 @@ describe('Parse', function () {
 
     test('Nested element',function (){
         const ast = baseParse('<div><p>hi</p>{{message}}</div>')
-        expect(ast.children[0]).toStrictEqual({
+        expect(ast.children![0]).toStrictEqual({
             type:NodeTypes.ELEMENT,
             tag:'div',
             children:[

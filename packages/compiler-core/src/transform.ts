@@ -5,14 +5,14 @@ import { TO_DISPLAY_STRING } from './runtimeHelpers'
 export interface TransformContext {
   root: Node
   helpers: Map<symbol, number>
-  helper(key: symbol): void
+  helper(key: symbol): symbol
   nodeTransforms: NodeTransform[]
 }
 
 //插件函数可能没用返回值，也有可能返回一个函数，用于控制多个插件的执行顺序
 export type NodeTransform = (
   node: Node,
-  context?: TransformContext
+  context: TransformContext
 ) => void | (() => void)
 
 export function transform(root: Node, options: TransformOptions) {
@@ -44,6 +44,7 @@ function createTransformContext(
     helpers: new Map<symbol, number>(),
     helper(key: symbol) {
       context.helpers.set(key, 1)
+      return key
     },
     nodeTransforms: options.nodeTransforms || [],
   }

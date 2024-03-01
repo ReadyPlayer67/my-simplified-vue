@@ -1,4 +1,5 @@
 import { CREATE_ELEMENT_VNODE } from './runtimeHelpers'
+import { TransformContext } from './transform'
 
 export const enum NodeTypes {
   INTERPOLATION,
@@ -17,9 +18,15 @@ export interface Node {
   content?: string | Node
   tag?: string
   codegenNode?: Node
+  props?: any
 }
 
-export function createVNodeCall(context, tag, props, children) {
+export function createVNodeCall(
+  context: TransformContext,
+  tag,
+  props,
+  children
+) {
   context.helper(CREATE_ELEMENT_VNODE)
   return {
     type: NodeTypes.ELEMENT,
