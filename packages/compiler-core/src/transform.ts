@@ -4,6 +4,9 @@ import { TO_DISPLAY_STRING } from './runtimeHelpers'
 
 export interface TransformContext {
   root: Node
+  currentNode: Node | null
+  parent: Node | null
+  childIndex: number
   helpers: Map<symbol, number>
   helper(key: symbol): symbol
   nodeTransforms: NodeTransform[]
@@ -38,8 +41,11 @@ function createTransformContext(
   root: Node,
   options: TransformOptions
 ): TransformContext {
-  const context = {
+  const context: TransformContext = {
     root,
+    currentNode: root,
+    parent: null,
+    childIndex: 0,
     //helpers用来存放需要导入的依赖名称
     helpers: new Map<symbol, number>(),
     helper(key: symbol) {
@@ -53,6 +59,7 @@ function createTransformContext(
 
 //利用递归对ast树进行深度优先遍历
 function traverseNode(node: Node, context: TransformContext) {
+  context.currentNode = node
   const { nodeTransforms } = context
   let exitFns: (() => void)[] = []
   //通过插件机制将容易变动的代码抽离出去，由外部去实现
@@ -83,6 +90,7 @@ function traverseNode(node: Node, context: TransformContext) {
 function traverseChildren(node: Node, context: TransformContext) {
   const children = node.children!
   for (let i = 0; i < children.length; i++) {
+    context.childIndex = i
     traverseNode(children[i], context)
   }
 }
