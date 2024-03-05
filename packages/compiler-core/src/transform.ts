@@ -9,8 +9,9 @@ export interface TransformContext {
   childIndex: number
   helpers: Map<symbol, number>
   helper(key: symbol): symbol
-  nodeTransforms: NodeTransform[],
+  nodeTransforms: NodeTransform[]
   replaceNode(node: Node): void
+  removeNode(node?: Node): void
 }
 
 //插件函数可能没用返回值，也有可能返回一个函数，用于控制多个插件的执行顺序
@@ -54,10 +55,14 @@ function createTransformContext(
       return key
     },
     nodeTransforms: options.nodeTransforms || [],
-    replaceNode(node){
+    replaceNode(node) {
       //先找到要被替换的节点，再将context.currentNode也替换为node
       context.parent!.children![context.childIndex] = context.currentNode = node
-    }
+    },
+    removeNode(node) {
+      context.parent!.children!.splice(context.childIndex, 1)
+      context.currentNode = null
+    },
   }
   return context
 }
