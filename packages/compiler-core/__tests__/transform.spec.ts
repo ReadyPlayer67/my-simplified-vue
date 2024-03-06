@@ -36,4 +36,19 @@ describe('transform', function () {
     expect(pNode.tag).toBe('p')
     expect(pNode.content).toBe('replace content')
   })
+
+  it('test removeNode', function () {
+    const ast = baseParse('<div><span>111</span></div>')
+    const plugin = (node: Node, context: TransformContext) => {
+      if (node.type === NodeTypes.ELEMENT && node.tag === 'span') {
+        context.removeNode()
+      }
+    }
+    transform(ast, {
+      nodeTransforms: [plugin],
+    })
+    // console.log(ast)
+    const childrenLength = ast.children![0].children!.length
+    expect(childrenLength).toBe(0)
+  })
 })

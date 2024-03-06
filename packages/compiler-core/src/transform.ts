@@ -78,6 +78,11 @@ function traverseNode(node: Node, context: TransformContext) {
     const onExit = transform(node, context)
     if (onExit) exitFns.push(onExit)
   }
+  // 由于任何转换函数都可能移除当前节点，因此每个转换函数执行完毕后
+  //都应该检查当前节点是否已经被移除，如果被移除了，直接返回即可
+  if (!context.currentNode) {
+    return
+  }
   //根据节点类型给ast添加需要导入的模块helpers
   switch (node.type) {
     case NodeTypes.INTERPOLATION:
