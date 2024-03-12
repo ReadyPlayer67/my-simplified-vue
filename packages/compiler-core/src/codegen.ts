@@ -32,7 +32,7 @@ export function generate(ast: Node) {
 }
 
 function createCodegenContext(): CodegenContext {
-  const context = {
+  const context: CodegenContext = {
     code: '',
     push(source) {
       context.code += source

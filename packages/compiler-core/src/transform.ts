@@ -71,18 +71,19 @@ function createTransformContext(
 function traverseNode(node: Node, context: TransformContext) {
   context.currentNode = node
   const { nodeTransforms } = context
-  let exitFns: (() => void)[] = []
+  const exitFns: (() => void)[] = []
   //通过插件机制将容易变动的代码抽离出去，由外部去实现
   //这样程序的扩展性就变得很强了，并且提高了程序的可测试性
   for (const transform of nodeTransforms) {
     const onExit = transform(node, context)
     if (onExit) exitFns.push(onExit)
+    // 由于任何转换函数都可能移除当前节点，因此每个转换函数执行完毕后
+    //都应该检查当前节点是否已经被移除，如果被移除了，直接返回即可
+    if (!context.currentNode) {
+      return
+    }
   }
-  // 由于任何转换函数都可能移除当前节点，因此每个转换函数执行完毕后
-  //都应该检查当前节点是否已经被移除，如果被移除了，直接返回即可
-  if (!context.currentNode) {
-    return
-  }
+
   //根据节点类型给ast添加需要导入的模块helpers
   switch (node.type) {
     case NodeTypes.INTERPOLATION:
