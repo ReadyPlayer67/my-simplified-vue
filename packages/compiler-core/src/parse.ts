@@ -77,7 +77,7 @@ function parseTextData(context: ParserContext, length: number) {
 
 function parseElement(context: ParserContext, ancestors: Node[]): Node {
   //处理<div>起始标签
-  const element: any = parseTag(context, TagType.Start)
+  const element = parseTag(context, TagType.Start) as Node
   //使用一个栈ancestors记录已经处理过的头部element标签
   ancestors.push(element)
   //在开始标签和闭合标签中间用parseChildren处理子节点内容
@@ -86,7 +86,7 @@ function parseElement(context: ParserContext, ancestors: Node[]): Node {
   ancestors.pop()
   // console.log('--------------', element.tag, context.source)
   //这里要判断下闭合标签名称是否是上面处理的标签名称一致，否则说明标签没有闭合，抛出错误
-  if (startsWithEndTagOpen(context.source, element.tag)) {
+  if (startsWithEndTagOpen(context.source, element.tag as string)) {
     //处理</div>闭合标签，保证推进
     parseTag(context, TagType.End)
   } else {
@@ -97,10 +97,7 @@ function parseElement(context: ParserContext, ancestors: Node[]): Node {
 
 //判断context.source下一段内容是不是tag的闭合标签
 function startsWithEndTagOpen(source: string, tag: string) {
-  return (
-    source.startsWith('</') &&
-    source.slice(2, tag.length + 2).toLowerCase() === tag.toLowerCase()
-  )
+  return source.startsWith('</') && source.slice(2, tag.length + 2).toLowerCase() === tag.toLowerCase()
 }
 
 function parseTag(context: ParserContext, type: TagType): Node | undefined {
@@ -125,10 +122,7 @@ function parseInterpolation(context: ParserContext): Node {
   const openDelimiter = '{{'
   const closeDelimiter = '}}'
   //查找闭合位置
-  const closeIndex = context.source.indexOf(
-    closeDelimiter,
-    openDelimiter.length
-  )
+  const closeIndex = context.source.indexOf(closeDelimiter, openDelimiter.length)
   //往前推进两个字符，去除掉'{{'
   advanceBy(context, openDelimiter.length)
   //通过closeIndex减掉'{{'的长度（因为已经推进了2个字符）获得content的长度
