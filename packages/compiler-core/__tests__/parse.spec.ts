@@ -24,6 +24,8 @@ describe('Parse', function () {
       expect(ast.children![0]).toStrictEqual({
         type: NodeTypes.ELEMENT,
         tag: 'div',
+        isSelfClosing: false,
+        props: [],
         children: [],
       })
     })
@@ -44,6 +46,8 @@ describe('Parse', function () {
     expect(ast.children![0]).toStrictEqual({
       type: NodeTypes.ELEMENT,
       tag: 'div',
+      isSelfClosing: false,
+      props: [],
       children: [
         {
           type: NodeTypes.TEXT,
@@ -65,10 +69,14 @@ describe('Parse', function () {
     expect(ast.children![0]).toStrictEqual({
       type: NodeTypes.ELEMENT,
       tag: 'div',
+      isSelfClosing: false,
+      props: [],
       children: [
         {
           type: NodeTypes.ELEMENT,
           tag: 'p',
+          isSelfClosing: false,
+          props: [],
           children: [
             {
               type: NodeTypes.TEXT,
@@ -96,11 +104,29 @@ describe('Parse', function () {
   test('self closing', function () {
     const ast = baseParse('<div/>after')
     const element = ast.children![0]
-    console.log(ast)
     expect(element).toStrictEqual({
       type: NodeTypes.ELEMENT,
       tag: 'div',
       isSelfClosing: true,
+      props: [],
+    })
+  })
+
+  test('attribute', function () {
+    const ast = baseParse('<div id="abc"></div>')
+    const element = ast.children![0]
+    expect(element).toStrictEqual({
+      type: NodeTypes.ELEMENT,
+      tag: 'div',
+      props: [
+        {
+          type: NodeTypes.ATTRIBUTE,
+          name: 'id',
+          value: 'abc',
+        },
+      ],
+      children: [],
+      isSelfClosing: false,
     })
   })
 })

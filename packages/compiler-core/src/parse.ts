@@ -1,4 +1,4 @@
-import { Node, NodeTypes } from './ast'
+import { AttributeNode, Node, NodeTypes } from './ast'
 
 const enum TagType {
   Start,
@@ -79,7 +79,7 @@ function parseElement(context: ParserContext, ancestors: Node[]): Node {
   //处理<div>起始标签
   const element = parseTag(context, TagType.Start) as Node
   //如果是自闭合标签，直接返回，不用去处理标签下的内容
-  if(element.isSelfClosing){
+  if (element.isSelfClosing) {
     return element
   }
   //使用一个栈ancestors记录已经处理过的头部element标签
@@ -112,6 +112,9 @@ function parseTag(context: ParserContext, type: TagType): Node | undefined {
   const tag = match[1]
   //match[0]是匹配的全部字符串，也就是<div，往前推进<div的字符长度
   advanceBy(context, match[0].length)
+  advanceSpaces(context)
+  //解析属性
+  const props = parseAttributes(context)
   const isSelfClosing = context.source.startsWith('/>')
   //如果标签是自闭合，前进2位(/>)，否则前进一位(>)
   advanceBy(context, isSelfClosing ? 2 : 1)
@@ -119,9 +122,54 @@ function parseTag(context: ParserContext, type: TagType): Node | undefined {
   if (type === TagType.End) return
   return {
     type: NodeTypes.ELEMENT,
+    props,
     tag,
-    isSelfClosing
+    isSelfClosing,
   }
+}
+
+function parseAttributes(context: ParserContext): AttributeNode[] {
+  const props: AttributeNode[] = []
+  while (!context.source.startsWith('>') && !context.source.startsWith('/>')) {
+    //匹配属性名称
+    const match = /^[^\t\r\n\f />][^\t\r\n\f/>=]*/.exec(context.source)!
+    //得到属性名称
+    const name = match[0]
+    //推进属性名的长度
+    advanceBy(context, name.length)
+    //推进等于号
+    advanceBy(context, 1)
+    let value = ''
+    //获取当前字符，可能是单引号或双引号
+    const quote = context.source[0]
+    const isQuoted = quote === '"' || quote === "'"
+    if (isQuoted) {
+      //推进引号
+      advanceBy(context, 1)
+      //获取下一个引号的索引
+      const endQuotaIndex = context.source.indexOf(quote)
+      if (endQuotaIndex > -1) {
+        //获取下一个引号之前的内容作为属性值
+        value = context.source.slice(0, endQuotaIndex)
+        //推进内容的长度
+        advanceBy(context, value.length)
+        advanceBy(context, 1)
+      } else {
+        throw new Error(`缺少引号`)
+      }
+    } else {
+      //如果属性值没有被引号包裹，简单地先不处理，报个错
+      throw new Error(`属性值须被引号包裹`)
+    }
+    //消费属性之后的空白字符
+    advanceSpaces(context)
+    props.push({
+      type: NodeTypes.ATTRIBUTE,
+      name,
+      value,
+    })
+  }
+  return props
 }
 
 function parseInterpolation(context: ParserContext): Node {
@@ -150,6 +198,13 @@ function parseInterpolation(context: ParserContext): Node {
 
 function advanceBy(context: ParserContext, length: number) {
   context.source = context.source.slice(length)
+}
+
+function advanceSpaces(context: ParserContext): void {
+  const match = /^[\t\r\n\f ]+/.exec(context.source)
+  if (match) {
+    advanceBy(context, match[0].length)
+  }
 }
 
 function createRoot(children: Node[]): Node {

@@ -8,6 +8,7 @@ export const enum NodeTypes {
   TEXT,
   ROOT,
   COMPOUND_EXPRESSION,
+  ATTRIBUTE,
 }
 
 export interface Node {
@@ -22,12 +23,13 @@ export interface Node {
   isSelfClosing?: boolean
 }
 
-export function createVNodeCall(
-  context: TransformContext,
-  tag,
-  props,
-  children
-) {
+export interface AttributeNode extends Node {
+  type: NodeTypes.ATTRIBUTE
+  name: string
+  value: string
+}
+
+export function createVNodeCall(context: TransformContext, tag, props, children) {
   context.helper(CREATE_ELEMENT_VNODE)
   return {
     type: NodeTypes.ELEMENT,
