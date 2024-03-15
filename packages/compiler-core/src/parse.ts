@@ -78,6 +78,10 @@ function parseTextData(context: ParserContext, length: number) {
 function parseElement(context: ParserContext, ancestors: Node[]): Node {
   //处理<div>起始标签
   const element = parseTag(context, TagType.Start) as Node
+  //如果是自闭合标签，直接返回，不用去处理标签下的内容
+  if(element.isSelfClosing){
+    return element
+  }
   //使用一个栈ancestors记录已经处理过的头部element标签
   ancestors.push(element)
   //在开始标签和闭合标签中间用parseChildren处理子节点内容
@@ -106,14 +110,17 @@ function parseTag(context: ParserContext, type: TagType): Node | undefined {
   // console.log('match:', match)
   //match[1]就是匹配到的tag类型
   const tag = match[1]
-  //match[0]是匹配的全部字符串，也就是<div，往前推进<div和>的字符长度
+  //match[0]是匹配的全部字符串，也就是<div，往前推进<div的字符长度
   advanceBy(context, match[0].length)
-  advanceBy(context, 1)
+  const isSelfClosing = context.source.startsWith('/>')
+  //如果标签是自闭合，前进2位(/>)，否则前进一位(>)
+  advanceBy(context, isSelfClosing ? 2 : 1)
   //用一个标记代表处理的是<div>还是</div>闭合标签，如果是闭合标签就不用返回ast节点
   if (type === TagType.End) return
   return {
     type: NodeTypes.ELEMENT,
     tag,
+    isSelfClosing
   }
 }
 

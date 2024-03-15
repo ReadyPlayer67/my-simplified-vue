@@ -19,6 +19,7 @@ export interface Node {
   tag?: string
   codegenNode?: Node
   props?: any
+  isSelfClosing?: boolean
 }
 
 export function createVNodeCall(
