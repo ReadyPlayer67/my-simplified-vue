@@ -5,6 +5,7 @@ export const enum NodeTypes {
   INTERPOLATION,
   SIMPLE_EXPRESSION,
   ELEMENT,
+  COMMENT,
   TEXT,
   ROOT,
   COMPOUND_EXPRESSION,

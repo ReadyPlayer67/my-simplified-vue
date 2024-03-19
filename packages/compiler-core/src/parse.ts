@@ -22,6 +22,8 @@ function parseChildren(context: ParserContext, ancestors: Node[]) {
     const s = context.source
     if (s.startsWith('{{')) {
       node = parseInterpolation(context)
+    } else if (s.startsWith('<!--')) {
+      node = parseComment(context)
     } else if (s[0] === '<') {
       //如果是<开头，认为是一个element标签
       if (/[a-z]/i.test(s[1])) {
@@ -193,6 +195,18 @@ function parseInterpolation(context: ParserContext): Node {
       type: NodeTypes.SIMPLE_EXPRESSION,
       content,
     },
+  }
+}
+
+function parseComment(context: ParserContext): Node {
+  advanceBy(context, '<!--'.length)
+  const closeIndex = context.source.indexOf('-->')
+  const content = context.source.slice(0, closeIndex)
+  advanceBy(context, content.length)
+  advanceBy(context, '-->'.length)
+  return {
+    type: NodeTypes.COMMENT,
+    content,
   }
 }
 

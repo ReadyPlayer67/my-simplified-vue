@@ -129,4 +129,14 @@ describe('Parse', function () {
       isSelfClosing: false,
     })
   })
+
+  test('simple comment', () => {
+    const ast = baseParse('<!--abc-->')
+    const comment = ast.children![0]
+
+    expect(comment).toStrictEqual({
+      type: NodeTypes.COMMENT,
+      content: 'abc',
+    })
+  })
 })
