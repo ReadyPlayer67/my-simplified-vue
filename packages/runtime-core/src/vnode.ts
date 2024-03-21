@@ -1,9 +1,4 @@
-import {
-  ShapeFlags,
-  isArray,
-  isFunction,
-  isObject,
-} from '@my-simplified-vue/shared'
+import { ShapeFlags, isArray, isFunction, isObject } from '@my-simplified-vue/shared'
 import { ComponentOptions } from './component'
 import { isTeleport } from './components/Teleport'
 import { TransitionHooks } from './components/Transition'
@@ -24,9 +19,44 @@ export interface VNode<ExtraProps = { [key: string]: any }> {
   shapeFlag: number
   el: RendererElement | null
   transition?: TransitionHooks
+  //如果一个节点是Block，用dynamicChildren属性存放他子代节点中动态的子节点
+  dynamicChildren: VNode[] | null
 }
 
-export function createVNode(type, props?, children?) {
+//动态节点栈
+export const blockStack: (VNode[] | null)[] = []
+//当前动态节点集合
+export let currentBlock: VNode[] | null = null
+
+export function openBlock(disableTracking = false) {
+  blockStack.push((currentBlock = disableTracking ? null : []))
+}
+
+export function closeBlock() {
+  blockStack.pop()
+  currentBlock = blockStack[blockStack.length - 1] || null
+}
+
+export function createBlock(
+  type: string | typeof Fragment | typeof Text | ComponentOptions,
+  props,
+  children: string | null | VNode[],
+  patchFlag: number = 0
+) {
+  // block 本质上也是一个 vnode
+  const block = createVNode(type,props,children,patchFlag)
+  // 将当前动态节点集合作为 block.dynamicChildren
+  block.dynamicChildren = currentBlock
+  closeBlock()
+  return block
+}
+
+export function createVNode(
+  type: string | typeof Fragment | typeof Text | ComponentOptions,
+  props,
+  children: string | null | VNode[],
+  patchFlag: number = 0
+) {
   const vnode: VNode = {
     type,
     props,
@@ -35,6 +65,7 @@ export function createVNode(type, props?, children?) {
     key: props && props.key,
     shapeFlag: getShapeFlag(type),
     el: null,
+    dynamicChildren: null,
   }
   if (typeof children === 'string') {
     //vnode.shapeFlag = vnode.shapeFlag | ShapeFlags.TEXT_CHILDREN 可以简写为
@@ -49,6 +80,10 @@ export function createVNode(type, props?, children?) {
     if (typeof vnode.children === 'object') {
       vnode.shapeFlag |= ShapeFlags.SLOT_CHILDREN
     }
+  }
+  //如果当前节点是动态的，将其添加到当前动态节点集合中
+  if (patchFlag > 0 && currentBlock) {
+    currentBlock.push(vnode)
   }
   return vnode
 }
