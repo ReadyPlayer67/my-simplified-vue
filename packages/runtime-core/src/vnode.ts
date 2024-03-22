@@ -17,6 +17,7 @@ export interface VNode<ExtraProps = { [key: string]: any }> {
   children: string | null | VNode[]
   component: any
   shapeFlag: number
+  patchFlag: number
   el: RendererElement | null
   transition?: TransitionHooks
   //如果一个节点是Block，用dynamicChildren属性存放他子代节点中动态的子节点
@@ -64,6 +65,7 @@ export function createVNode(
     component: null,
     key: props && props.key,
     shapeFlag: getShapeFlag(type),
+    patchFlag,
     el: null,
     dynamicChildren: null,
   }
@@ -81,7 +83,7 @@ export function createVNode(
       vnode.shapeFlag |= ShapeFlags.SLOT_CHILDREN
     }
   }
-  //如果当前节点是动态的，将其添加到当前动态节点集合中
+  //patchFlag>0表示节点是动态的，将其添加到当前动态节点集合中
   if (patchFlag > 0 && currentBlock) {
     currentBlock.push(vnode)
   }
@@ -93,7 +95,7 @@ export function createTextVNode(text: string) {
 }
 
 function getShapeFlag(type) {
-  ////如果vnode的type是字符串，他就是element类型，否则就是component
+  //如果vnode的type是字符串，他就是element类型，否则就是component
   if (typeof type === 'string') {
     return ShapeFlags.ELEMENT
   } else if (isTeleport(type)) {
