@@ -12,7 +12,7 @@ export { createVNode as createElementVNode }
 
 export interface VNode<ExtraProps = { [key: string]: any }> {
   type: string | typeof Fragment | typeof Text | ComponentOptions
-  props: ExtraProps | null
+  props: (VNodeProps & ExtraProps) | null
   key: string | number | symbol | null
   children: string | null | VNode[]
   component: any
@@ -22,6 +22,10 @@ export interface VNode<ExtraProps = { [key: string]: any }> {
   transition?: TransitionHooks
   //如果一个节点是Block，用dynamicChildren属性存放他子代节点中动态的子节点
   dynamicChildren: VNode[] | null
+}
+
+export type VNodeProps = {
+  key?: string | number | symbol
 }
 
 //动态节点栈
@@ -45,7 +49,7 @@ export function createBlock(
   patchFlag: number = 0
 ) {
   // block 本质上也是一个 vnode
-  const block = createVNode(type,props,children,patchFlag)
+  const block = createVNode(type, props, children, patchFlag)
   // 将当前动态节点集合作为 block.dynamicChildren
   block.dynamicChildren = currentBlock
   closeBlock()
@@ -54,8 +58,8 @@ export function createBlock(
 
 export function createVNode(
   type: string | typeof Fragment | typeof Text | ComponentOptions,
-  props,
-  children: string | null | VNode[],
+  props: (VNodeProps & Record<string, unknown>) | null = null,
+  children: string | null | VNode[] = null,
   patchFlag: number = 0
 ) {
   const vnode: VNode = {
@@ -63,7 +67,7 @@ export function createVNode(
     props,
     children,
     component: null,
-    key: props && props.key,
+    key: props && (props.key != null ? props.key : null),
     shapeFlag: getShapeFlag(type),
     patchFlag,
     el: null,
