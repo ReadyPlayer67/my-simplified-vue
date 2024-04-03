@@ -1,5 +1,5 @@
 import { ShapeFlags, isArray, isFunction, isObject } from '@my-simplified-vue/shared'
-import { ComponentOptions } from './component'
+import { Component, ComponentOptions } from './component'
 import { isTeleport } from './components/Teleport'
 import { TransitionHooks } from './components/Transition'
 import { RendererElement } from './renderer'
@@ -11,7 +11,7 @@ export const Text = Symbol('Text')
 export { createVNode as createElementVNode }
 
 export interface VNode<ExtraProps = { [key: string]: any }> {
-  type: string | typeof Fragment | typeof Text | ComponentOptions
+  type: string | typeof Fragment | typeof Text | Component
   props: (VNodeProps & ExtraProps) | null
   key: string | number | symbol | null
   children: string | null | VNode[]
@@ -57,7 +57,7 @@ export function createBlock(
 }
 
 export function createVNode(
-  type: string | typeof Fragment | typeof Text | ComponentOptions,
+  type: string | typeof Fragment | typeof Text | Component,
   props: (VNodeProps & Record<string, unknown>) | null = null,
   children: string | null | VNode[] = null,
   patchFlag: number = 0

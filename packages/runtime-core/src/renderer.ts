@@ -39,7 +39,7 @@ export function createRenderer(options) {
   }
 
   //n1代表旧的vnode，n2代表新的vnode
-  function patch(n1: VNode | null, n2: VNode, container, parentComponent, anchor) {
+  function patch(n1: VNode | null, n2: VNode, container, parentComponent: ComponentInternalInstance | null, anchor) {
     console.log('patch')
     if (n1 && !isSameVNodeType(n1, n2)) {
       // anchor = getNextHostNode(n1)
@@ -75,7 +75,13 @@ export function createRenderer(options) {
   }
 
   //处理Fragment类型节点
-  function processFragment(n1: VNode | null, n2: VNode, container, parentComponent, anchor) {
+  function processFragment(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent: ComponentInternalInstance | null,
+    anchor
+  ) {
     if (n1 == null) {
       mountChildren(n2.children, container, parentComponent, anchor)
     } else {
@@ -92,7 +98,13 @@ export function createRenderer(options) {
   }
 
   //处理element类型的vnode
-  function processElement(n1: VNode | null, n2: VNode, container, parentComponent, anchor) {
+  function processElement(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent: ComponentInternalInstance | null,
+    anchor
+  ) {
     if (!n1) {
       //如果n1不存在，是初始化
       mountElement(n2, container, parentComponent, anchor)
@@ -101,7 +113,7 @@ export function createRenderer(options) {
     }
   }
 
-  function patchElement(n1: VNode, n2: VNode, container, parentComponent, anchor) {
+  function patchElement(n1: VNode, n2: VNode, container, parentComponent: ComponentInternalInstance | null, anchor) {
     let { patchFlag, dynamicChildren } = n2
     const oldProps = n1.props || EMPTY_OBJ
     const newProps = n2.props || EMPTY_OBJ
@@ -112,14 +124,20 @@ export function createRenderer(options) {
       patchChildren(n1, n2, el, parentComponent, anchor)
     }
     //说明当前节点是动态的，需要比对props
-    if(patchFlag > 0){
-      if(patchFlag & PatchFlags.FULL_PROPS){
+    if (patchFlag > 0) {
+      if (patchFlag & PatchFlags.FULL_PROPS) {
         patchProps(el, oldProps, newProps)
       }
     }
   }
 
-  function patchChildren(n1: VNode | null, n2: VNode, container, parentComponent, anchor) {
+  function patchChildren(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent: ComponentInternalInstance | null,
+    anchor
+  ) {
     const prevShapeFlag = n1 ? n1.shapeFlag : 0
     const c1 = n1 && n1.children
     const { shapeFlag } = n2
@@ -146,7 +164,7 @@ export function createRenderer(options) {
     }
   }
 
-  function patchBlockChildren(oldChildren, newChildren, container, parentComponent) {
+  function patchBlockChildren(oldChildren, newChildren, container, parentComponent: ComponentInternalInstance | null) {
     for (let i = 0; i < newChildren.length; i++) {
       const oldVNode = oldChildren[i]
       const newVNode = newChildren[i]
@@ -154,7 +172,13 @@ export function createRenderer(options) {
     }
   }
 
-  function patchKeyedChildren(c1: VNode[], c2: VNode[], container, parentComponent, parentAnchor) {
+  function patchKeyedChildren(
+    c1: VNode[],
+    c2: VNode[],
+    container,
+    parentComponent: ComponentInternalInstance | null,
+    parentAnchor
+  ) {
     let i = 0
     const l2 = c2.length
     let e1 = c1.length - 1
@@ -330,7 +354,7 @@ export function createRenderer(options) {
     }
   }
 
-  function mountElement(vnode: VNode, container, parentComponent, anchor) {
+  function mountElement(vnode: VNode, container, parentComponent: ComponentInternalInstance | null, anchor) {
     const { type, props, children, shapeFlag, transition } = vnode
     //使用连续赋值，把el赋值给vnode.el
     //但是这里的vnode是element类型的（div），组件的vnode上是没有值的，所以要在下面赋值给组件的el
@@ -356,7 +380,7 @@ export function createRenderer(options) {
     needCallTransitionHooks && vnode.transition!.enter(el)
   }
 
-  function mountChildren(children, container, parentComponent, anchor) {
+  function mountChildren(children, container, parentComponent: ComponentInternalInstance | null, anchor) {
     // children.forEach((vnode) => {
     //   patch(null, vnode, container, parentComponent, anchor)
     // })
@@ -367,11 +391,17 @@ export function createRenderer(options) {
   }
 
   //处理组件类型的vnode
-  function processComponent(n1: VNode | null, n2: VNode, container, parentComponent, anchor) {
+  function processComponent(
+    n1: VNode | null,
+    n2: VNode,
+    container,
+    parentComponent: ComponentInternalInstance | null,
+    anchor
+  ) {
     if (!n1) {
       //如果组件是被KeepAlive缓存的，直接激活而不是mount
       if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
-        ;(parentComponent.ctx as KeepAliveContext).activate(n2, container, anchor)
+        ;(parentComponent!.ctx as unknown as KeepAliveContext).activate(n2, container, anchor)
       } else {
         //挂载虚拟节点
         mountComponent(n2, container, parentComponent, anchor)
@@ -406,7 +436,7 @@ export function createRenderer(options) {
     o: options,
   }
 
-  function mountComponent(initialVNode: VNode, container, parentComponent, anchor) {
+  function mountComponent(initialVNode: VNode, container, parentComponent: ComponentInternalInstance | null, anchor) {
     //创建一个组件实例
     //同时把组件实例赋值给vnode上的component属性，在之后更新组件时会用到
     const instance = (initialVNode.component = createComponentInstance(initialVNode, parentComponent))

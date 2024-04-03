@@ -27,6 +27,8 @@ export interface ComponentInternalInstance {
   ctx: Record<string, unknown>
 }
 
+export type Component = ComponentOptions | FunctionalComponent
+
 export interface ComponentOptions {
   setup?: (this: void, props: any, ctx: any) => void
 }
