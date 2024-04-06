@@ -43,16 +43,34 @@ function querySelector(selector: string) {
 
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
-const renderer: any = createRenderer({
-  createElement,
-  patchProp,
-  insert,
-  remove,
-  setElementText,
-  querySelector,
-})
+// const renderer: any = createRenderer({
+//   createElement,
+//   patchProp,
+//   insert,
+//   remove,
+//   setElementText,
+//   querySelector,
+// })
+
+//写一个ensureRenderer方法用来延迟加载渲染器，这样用户如果不用runtime模块，就不会创建渲染器
+//tree-shaking就能移除runtime的代码，减小打包生成的代码体积
+let renderer
+function ensureRenderer() {
+  return (
+    renderer ||
+    (renderer = createRenderer({
+      createElement,
+      patchProp,
+      insert,
+      remove,
+      setElementText,
+      querySelector,
+    }))
+  )
+}
 export function createApp(...args) {
-  return renderer.createApp(...args)
+  const app = ensureRenderer().createApp(...args)
+  return app
 }
 
 //runtime-core是runtime-dom依赖的上层，所以放在这里导出

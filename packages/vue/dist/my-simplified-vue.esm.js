@@ -52,15 +52,19 @@ const Teleport = {
 //使用Symbol创建一个全局变量作为Fragment类型vnode的type
 const Fragment = Symbol('Fragment');
 const Text = Symbol('Text');
-function createVNode(type, props, children) {
+//当前动态节点集合
+let currentBlock = null;
+function createVNode(type, props = null, children = null, patchFlag = 0) {
     const vnode = {
         type,
         props,
         children,
         component: null,
-        key: props && props.key,
+        key: props && (props.key != null ? props.key : null),
         shapeFlag: getShapeFlag(type),
+        patchFlag,
         el: null,
+        dynamicChildren: null,
     };
     if (typeof children === 'string') {
         //vnode.shapeFlag = vnode.shapeFlag | ShapeFlags.TEXT_CHILDREN 可以简写为
@@ -78,13 +82,17 @@ function createVNode(type, props, children) {
             vnode.shapeFlag |= 32 /* ShapeFlags.SLOT_CHILDREN */;
         }
     }
+    //patchFlag>0表示节点是动态的，将其添加到当前动态节点集合中
+    if (patchFlag > 0 && currentBlock) {
+        currentBlock.push(vnode);
+    }
     return vnode;
 }
 function createTextVNode(text) {
     return createVNode(Text, {}, text);
 }
 function getShapeFlag(type) {
-    ////如果vnode的type是字符串，他就是element类型，否则就是component
+    //如果vnode的type是字符串，他就是element类型，否则就是component
     if (typeof type === 'string') {
         return 1 /* ShapeFlags.ELEMENT */;
     }
@@ -887,6 +895,11 @@ function createAppApi(render) {
         };
     };
 }
+//使用createApp方法
+// import { createApp } from 'vue'
+// import App from './app'
+// const app = createApp(App)
+// app.mount('#app')
 
 //实现一个方法对比新老vnode的props，如果返回true代表变化了，要更新组件
 function shouldUpdateComponent(preVNode, nextVNode) {
@@ -1008,11 +1021,22 @@ function createRenderer(options) {
         }
     }
     function patchElement(n1, n2, container, parentComponent, anchor) {
+        let { patchFlag, dynamicChildren } = n2;
         const oldProps = n1.props || EMPTY_OBJ;
         const newProps = n2.props || EMPTY_OBJ;
         const el = (n2.el = n1.el);
-        patchChildren(n1, n2, el, parentComponent, anchor);
-        patchProps(el, oldProps, newProps);
+        if (dynamicChildren) {
+            patchBlockChildren(n1.dynamicChildren, dynamicChildren, el, parentComponent);
+        }
+        else {
+            patchChildren(n1, n2, el, parentComponent, anchor);
+        }
+        //说明当前节点是动态的，需要比对props
+        if (patchFlag > 0) {
+            if (patchFlag & 16 /* PatchFlags.FULL_PROPS */) {
+                patchProps(el, oldProps, newProps);
+            }
+        }
     }
     function patchChildren(n1, n2, container, parentComponent, anchor) {
         const prevShapeFlag = n1 ? n1.shapeFlag : 0;
@@ -1041,6 +1065,13 @@ function createRenderer(options) {
             else {
                 patchKeyedChildren(c1, c2, container, parentComponent, anchor);
             }
+        }
+    }
+    function patchBlockChildren(oldChildren, newChildren, container, parentComponent) {
+        for (let i = 0; i < newChildren.length; i++) {
+            const oldVNode = oldChildren[i];
+            const newVNode = newChildren[i];
+            patch(oldVNode, newVNode, container, null, parentComponent);
         }
     }
     function patchKeyedChildren(c1, c2, container, parentComponent, parentAnchor) {
@@ -1176,9 +1207,7 @@ function createRenderer(options) {
             }
             // console.log(newIndexToOldIndexMap)
             //获取最长递增子序列[5,3,4] -> [1,2]，如果moved为false，我们无需移动任何元素，自然也不需要计算最长递增子序列了
-            const increasingNewIndexSequence = moved
-                ? getSequence(newIndexToOldIndexMap)
-                : [];
+            const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : [];
             // console.log(increasingNewIndexSequence)
             let j = increasingNewIndexSequence.length - 1;
             //这里使用反向循环，因为我们insertBefore方法需要插入元素的后一个元素
@@ -1369,8 +1398,7 @@ function createRenderer(options) {
             //在instance上新增一个属性isMounted用于标记组件是否已经初始化，如果已经初始化，就进入update逻辑
             if (!instance.isMounted) {
                 let subTree;
-                if (vnode.shapeFlag &&
-                    vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
+                if (vnode.shapeFlag && vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
                     //如果是函数组件，组件的type为() => {...}，就是渲染函数
                     render = type;
                     subTree = normalizeVNode(render(props));
@@ -1387,8 +1415,7 @@ function createRenderer(options) {
                 //这时候subTree的el就是这个组件根节点的el，赋值给组件的el属性即可
                 initialVnode.el = subTree.el;
                 //组件挂载完毕后执行mounted生命周期
-                instance[LifecycleHooks.MOUNTED] &&
-                    instance[LifecycleHooks.MOUNTED].forEach((hook) => hook());
+                instance[LifecycleHooks.MOUNTED] && instance[LifecycleHooks.MOUNTED].forEach((hook) => hook());
                 instance.subTree = subTree;
                 instance.isMounted = true;
             }
@@ -1402,8 +1429,7 @@ function createRenderer(options) {
                     next.el = vnode.el;
                     updateComponentPreRender(instance, next);
                 }
-                if (vnode.shapeFlag &&
-                    vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
+                if (vnode.shapeFlag && vnode.shapeFlag & 2 /* ShapeFlags.FUNCTIONAL_COMPONENT */) {
                     render = type;
                     subTree = normalizeVNode(render(props));
                 }
@@ -1414,8 +1440,7 @@ function createRenderer(options) {
                 instance.subTree = subTree;
                 patch(prevSubTree, subTree, container, instance, anchor);
                 //组件更新完毕后执行updated生命周期
-                instance[LifecycleHooks.UPDATED] &&
-                    instance[LifecycleHooks.UPDATED].forEach((hook) => hook());
+                instance[LifecycleHooks.UPDATED] && instance[LifecycleHooks.UPDATED].forEach((hook) => hook());
             }
         }, {
             scheduler() {
@@ -1553,16 +1578,31 @@ function querySelector(selector) {
 }
 //下面两种写法等价
 // export const {createApp} = createRenderer({createElement,patchProp,insert})
-const renderer = createRenderer({
-    createElement,
-    patchProp,
-    insert,
-    remove,
-    setElementText,
-    querySelector,
-});
+// const renderer: any = createRenderer({
+//   createElement,
+//   patchProp,
+//   insert,
+//   remove,
+//   setElementText,
+//   querySelector,
+// })
+//写一个ensureRenderer方法用来延迟加载渲染器，这样用户如果不用runtime模块，就不会创建渲染器
+//tree-shaking就能移除runtime的代码，减小打包生成的代码体积
+let renderer;
+function ensureRenderer() {
+    return (renderer ||
+        (renderer = createRenderer({
+            createElement,
+            patchProp,
+            insert,
+            remove,
+            setElementText,
+            querySelector,
+        })));
+}
 function createApp(...args) {
-    return renderer.createApp(...args);
+    const app = ensureRenderer().createApp(...args);
+    return app;
 }
 
 var runtimeDom = /*#__PURE__*/Object.freeze({
@@ -1606,13 +1646,18 @@ function baseParse(content) {
 function parseChildren(context, ancestors) {
     let nodes = [];
     while (!isEnd(context, ancestors)) {
-        let node;
+        let node = undefined;
         const s = context.source;
         if (s.startsWith('{{')) {
             node = parseInterpolation(context);
         }
-        else if (s[0] === '<') { //如果是<开头，认为是一个element标签
-            if (/[a-z]/i.test(s[1])) { //<后面必须是字母
+        else if (s.startsWith('<!--')) {
+            node = parseComment(context);
+        }
+        else if (s[0] === '<') {
+            //如果是<开头，认为是一个element标签
+            if (/[a-z]/i.test(s[1])) {
+                //<后面必须是字母
                 node = parseElement(context, ancestors);
             }
         }
@@ -1649,8 +1694,8 @@ function parseText(context) {
     }
     const content = parseTextData(context, endIndex);
     return {
-        type: 3 /* NodeTypes.TEXT */,
-        content
+        type: 4 /* NodeTypes.TEXT */,
+        content,
     };
 }
 function parseTextData(context, length) {
@@ -1661,6 +1706,10 @@ function parseTextData(context, length) {
 function parseElement(context, ancestors) {
     //处理<div>起始标签
     const element = parseTag(context, 0 /* TagType.Start */);
+    //如果是自闭合标签，直接返回，不用去处理标签下的内容
+    if (element.isSelfClosing) {
+        return element;
+    }
     //使用一个栈ancestors记录已经处理过的头部element标签
     ancestors.push(element);
     //在开始标签和闭合标签中间用parseChildren处理子节点内容
@@ -1688,16 +1737,68 @@ function parseTag(context, type) {
     // console.log('match:', match)
     //match[1]就是匹配到的tag类型
     const tag = match[1];
-    //match[0]是匹配的全部字符串，也就是<div，往前推进<div和>的字符长度
+    //match[0]是匹配的全部字符串，也就是<div，往前推进<div的字符长度
     advanceBy(context, match[0].length);
-    advanceBy(context, 1);
+    advanceSpaces(context);
+    //解析属性
+    const props = parseAttributes(context);
+    const isSelfClosing = context.source.startsWith('/>');
+    //如果标签是自闭合，前进2位(/>)，否则前进一位(>)
+    advanceBy(context, isSelfClosing ? 2 : 1);
     //用一个标记代表处理的是<div>还是</div>闭合标签，如果是闭合标签就不用返回ast节点
     if (type === 1 /* TagType.End */)
         return;
     return {
         type: 2 /* NodeTypes.ELEMENT */,
-        tag
+        props,
+        tag,
+        isSelfClosing,
     };
+}
+function parseAttributes(context) {
+    const props = [];
+    while (!context.source.startsWith('>') && !context.source.startsWith('/>')) {
+        //匹配属性名称
+        const match = /^[^\t\r\n\f />][^\t\r\n\f/>=]*/.exec(context.source);
+        //得到属性名称
+        const name = match[0];
+        //推进属性名的长度
+        advanceBy(context, name.length);
+        //推进等于号
+        advanceBy(context, 1);
+        let value = '';
+        //获取当前字符，可能是单引号或双引号
+        const quote = context.source[0];
+        const isQuoted = quote === '"' || quote === "'";
+        if (isQuoted) {
+            //推进引号
+            advanceBy(context, 1);
+            //获取下一个引号的索引
+            const endQuotaIndex = context.source.indexOf(quote);
+            if (endQuotaIndex > -1) {
+                //获取下一个引号之前的内容作为属性值
+                value = context.source.slice(0, endQuotaIndex);
+                //推进内容的长度
+                advanceBy(context, value.length);
+                advanceBy(context, 1);
+            }
+            else {
+                throw new Error(`缺少引号`);
+            }
+        }
+        else {
+            //如果属性值没有被引号包裹，简单地先不处理，报个错
+            throw new Error(`属性值须被引号包裹`);
+        }
+        //消费属性之后的空白字符
+        advanceSpaces(context);
+        props.push({
+            type: 7 /* NodeTypes.ATTRIBUTE */,
+            name,
+            value,
+        });
+    }
+    return props;
 }
 function parseInterpolation(context) {
     //定义前后两个分隔符
@@ -1718,22 +1819,39 @@ function parseInterpolation(context) {
         type: 0 /* NodeTypes.INTERPOLATION */,
         content: {
             type: 1 /* NodeTypes.SIMPLE_EXPRESSION */,
-            content
-        }
+            content,
+        },
+    };
+}
+function parseComment(context) {
+    advanceBy(context, '<!--'.length);
+    const closeIndex = context.source.indexOf('-->');
+    const content = context.source.slice(0, closeIndex);
+    advanceBy(context, content.length);
+    advanceBy(context, '-->'.length);
+    return {
+        type: 3 /* NodeTypes.COMMENT */,
+        content,
     };
 }
 function advanceBy(context, length) {
     context.source = context.source.slice(length);
 }
+function advanceSpaces(context) {
+    const match = /^[\t\r\n\f ]+/.exec(context.source);
+    if (match) {
+        advanceBy(context, match[0].length);
+    }
+}
 function createRoot(children) {
     return {
         children,
-        type: 4 /* NodeTypes.ROOT */
+        type: 5 /* NodeTypes.ROOT */,
     };
 }
 function createParserContext(content) {
     return {
-        source: content
+        source: content,
     };
 }
 
@@ -1741,16 +1859,16 @@ const TO_DISPLAY_STRING = Symbol('toDisplayString');
 const CREATE_ELEMENT_VNODE = Symbol('createElementVNode');
 const helperNameMap = {
     [TO_DISPLAY_STRING]: 'toDisplayString',
-    [CREATE_ELEMENT_VNODE]: 'createElementVNode'
+    [CREATE_ELEMENT_VNODE]: 'createElementVNode',
 };
 
-function transform(root, options = {}) {
+function transform(root, options) {
     //创建一个上下文存放root和options
     const context = createTransformContext(root, options);
     traverseNode(root, context);
     //创建一个codegenNode作为生成render函数的入口节点
     createCodegenNode(root);
-    root.helpers = [...context.helpers.keys()];
+    root.helpers = new Set([...context.helpers.keys()]);
 }
 function createCodegenNode(root) {
     //获取root下的第一个节点，如果是element类型，就把element的codegenNode作为root的入口
@@ -1765,24 +1883,43 @@ function createCodegenNode(root) {
 function createTransformContext(root, options) {
     const context = {
         root,
+        currentNode: root,
+        parent: null,
+        childIndex: 0,
+        //helpers用来存放需要导入的依赖名称
         helpers: new Map(),
         helper(key) {
             context.helpers.set(key, 1);
+            return key;
         },
-        nodeTransforms: options.nodeTransforms || []
+        nodeTransforms: options.nodeTransforms || [],
+        replaceNode(node) {
+            //先找到要被替换的节点，再将context.currentNode也替换为node
+            context.parent.children[context.childIndex] = context.currentNode = node;
+        },
+        removeNode(node) {
+            context.parent.children.splice(context.childIndex, 1);
+            context.currentNode = null;
+        },
     };
     return context;
 }
 //利用递归对ast树进行深度优先遍历
 function traverseNode(node, context) {
+    context.currentNode = node;
     const { nodeTransforms } = context;
-    let exitFns = [];
+    const exitFns = [];
     //通过插件机制将容易变动的代码抽离出去，由外部去实现
     //这样程序的扩展性就变得很强了，并且提高了程序的可测试性
     for (const transform of nodeTransforms) {
         const onExit = transform(node, context);
         if (onExit)
             exitFns.push(onExit);
+        // 由于任何转换函数都可能移除当前节点，因此每个转换函数执行完毕后
+        //都应该检查当前节点是否已经被移除，如果被移除了，直接返回即可
+        if (!context.currentNode) {
+            return;
+        }
     }
     //根据节点类型给ast添加需要导入的模块helpers
     switch (node.type) {
@@ -1790,7 +1927,7 @@ function traverseNode(node, context) {
             context.helper(TO_DISPLAY_STRING);
             break;
         //root和element类型节点才会有children
-        case 4 /* NodeTypes.ROOT */:
+        case 5 /* NodeTypes.ROOT */:
         case 2 /* NodeTypes.ELEMENT */:
             traverseChildren(node, context);
             break;
@@ -1803,15 +1940,17 @@ function traverseNode(node, context) {
 function traverseChildren(node, context) {
     const children = node.children;
     for (let i = 0; i < children.length; i++) {
+        context.parent = context.currentNode;
+        context.childIndex = i;
         traverseNode(children[i], context);
     }
 }
 
-function transformExpression(node) {
+const transformExpression = (node) => {
     if (node.type === 0 /* NodeTypes.INTERPOLATION */) {
         node.content = processExpression(node.content);
     }
-}
+};
 function processExpression(node) {
     node.content = '_ctx.' + node.content;
     return node;
@@ -1823,32 +1962,32 @@ function createVNodeCall(context, tag, props, children) {
         type: 2 /* NodeTypes.ELEMENT */,
         tag,
         props,
-        children
+        children,
     };
 }
 
-function transformElement(node, context) {
-    if (node.type === 2 /* NodeTypes.ELEMENT */) {
-        return () => {
-            //tag
+const transformElement = (node, context) => {
+    return () => {
+        //tag
+        if (node.type === 2 /* NodeTypes.ELEMENT */) {
             const vnodeTag = `'${node.tag}'`;
             //props
             let vnodeProps;
             //children
             const vnodeChildren = node.children[0];
             node.codegenNode = createVNodeCall(context, vnodeTag, vnodeProps, vnodeChildren);
-        };
-    }
-}
+        }
+    };
+};
 
 function isText(node) {
-    return node.type === 3 /* NodeTypes.TEXT */ || node.type === 0 /* NodeTypes.INTERPOLATION */;
+    return node.type === 4 /* NodeTypes.TEXT */ || node.type === 0 /* NodeTypes.INTERPOLATION */;
 }
 
-function transformText(node) {
-    if (node.type === 2 /* NodeTypes.ELEMENT */) {
-        return () => {
-            const { children } = node;
+const transformText = (node) => {
+    return () => {
+        if (node.type === 2 /* NodeTypes.ELEMENT */) {
+            const children = node.children;
             let currentContainer;
             for (let i = 0; i < children.length; i++) {
                 const child = children[i];
@@ -1862,8 +2001,8 @@ function transformText(node) {
                                 //如果currentContainer不存在，代表是child是复合节点的第一项
                                 //创建一个复合节点，并把文本节点替换为复合节点，并把文本节点放到children里
                                 currentContainer = children[i] = {
-                                    type: 5 /* NodeTypes.COMPOUND_EXPRESSION */,
-                                    children: [child]
+                                    type: 6 /* NodeTypes.COMPOUND_EXPRESSION */,
+                                    children: [child],
                                 };
                             }
                             //往复合节点的children里追加+和下一个文本节点
@@ -1881,9 +2020,9 @@ function transformText(node) {
                     }
                 }
             }
-        };
-    }
-}
+        }
+    };
+};
 
 function generate(ast) {
     const context = createCodegenContext();
@@ -1894,10 +2033,15 @@ function generate(ast) {
     const signature = args.join(', ');
     push(`function ${functionName} (${signature}) {`);
     push('return ');
-    genNode(ast.codegenNode, context);
+    if (ast.codegenNode) {
+        genNode(ast.codegenNode, context);
+    }
+    else {
+        push(`null`);
+    }
     push('}');
     return {
-        code: context.code
+        code: context.code,
     };
 }
 function createCodegenContext() {
@@ -1908,7 +2052,7 @@ function createCodegenContext() {
         },
         helper(key) {
             return `_${helperNameMap[key]}`;
-        }
+        },
     };
     return context;
 }
@@ -1917,8 +2061,11 @@ function genFunctionPreamble(ast, context) {
     const { push } = context;
     const VueBinging = 'Vue';
     const aliasHelper = (s) => `${helperNameMap[s]}: _${helperNameMap[s]}`;
-    if (ast.helpers.length > 0) {
-        push(`const { ${ast.helpers.map(helper => aliasHelper(helper)).join(', ')} } = ${VueBinging}`);
+    const helpers = Array.from(ast.helpers);
+    if (helpers.length > 0) {
+        push(`const { ${helpers
+            .map((helper) => aliasHelper(helper))
+            .join(', ')} } = ${VueBinging}`);
     }
     push('\n');
     push('return ');
@@ -1928,7 +2075,7 @@ function genNode(node, context) {
         case 0 /* NodeTypes.INTERPOLATION */:
             genInterpolation(node, context);
             break;
-        case 3 /* NodeTypes.TEXT */:
+        case 4 /* NodeTypes.TEXT */:
             genText(node, context);
             break;
         case 1 /* NodeTypes.SIMPLE_EXPRESSION */:
@@ -1937,7 +2084,7 @@ function genNode(node, context) {
         case 2 /* NodeTypes.ELEMENT */:
             genElement(node, context);
             break;
-        case 5 /* NodeTypes.COMPOUND_EXPRESSION */:
+        case 6 /* NodeTypes.COMPOUND_EXPRESSION */:
             genCompoundExpression(node, context);
             break;
     }
@@ -1964,7 +2111,7 @@ function genElement(node, context) {
     push(')');
 }
 function genNullable(args) {
-    return args.map(arg => arg || 'null');
+    return args.map((arg) => arg || 'null');
 }
 function genNodeList(nodes, context) {
     const { push } = context;
@@ -1983,13 +2130,15 @@ function genNodeList(nodes, context) {
 }
 function genCompoundExpression(node, context) {
     const { push } = context;
-    const { children } = node;
+    const children = node.children;
     for (let i = 0; i < children.length; i++) {
         const child = children[i];
-        if (isString(child)) { //符号+直接push
+        if (isString(child)) {
+            //符号+直接push
             push(child);
         }
-        else { //文字类型节点
+        else {
+            //文字类型节点
             genNode(child, context);
         }
     }
@@ -1999,7 +2148,7 @@ function genCompoundExpression(node, context) {
 function baseCompile(template) {
     const ast = baseParse(template);
     transform(ast, {
-        nodeTransforms: [transformExpression, transformElement, transformText]
+        nodeTransforms: [transformExpression, transformElement, transformText],
     });
     return generate(ast);
 }
