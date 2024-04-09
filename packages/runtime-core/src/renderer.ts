@@ -497,7 +497,7 @@ export function createRenderer(options) {
     hostInsert(el, container, anchor)
   }
 
-  function setupRenderEffect(instance: ComponentInternalInstance, initialVnode, container, anchor) {
+  function setupRenderEffect(instance: ComponentInternalInstance, initialVnode: VNode, container, anchor) {
     //用effect把render()方法包裹起来，第一次执行render会触发get，把依赖收集起来
     //之后响应式对象变化，会触发依赖，执行effect.fn，重新执行render，从而生成一个新的subTree
     //effect返回一个runner方法，执行runner方法会再次执行effect.run，把他赋值给instance.update，之后就可以调用这个方法来触发组件更新
