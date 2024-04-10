@@ -532,6 +532,18 @@ const PublicInstanceProxyHandlers = {
             return publicGetter(instance);
         }
     },
+    set({ _: instance }, key, value) {
+        const { setupState, props } = instance;
+        if (hasOwn(setupState, key)) {
+            setupState[key] = value;
+            return true;
+        }
+        else if (hasOwn(props, key)) {
+            console.warn(`属性 ${key} 属于props，不能被修改`);
+            return false;
+        }
+        return true;
+    },
 };
 
 const initProps = (instance, raw) => {

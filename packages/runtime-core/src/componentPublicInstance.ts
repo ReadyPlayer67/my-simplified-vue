@@ -30,4 +30,15 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       return publicGetter(instance)
     }
   },
+  set({ _: instance }: ComponentRenderContext, key: string, value: any): boolean {
+    const { setupState, props } = instance
+    if(hasOwn(setupState,key)){
+      setupState[key] = value
+      return true
+    }else if(hasOwn(props, key)){
+      console.warn(`属性 ${key} 属于props，不能被修改`)
+      return false
+    }
+    return true
+  },
 }
