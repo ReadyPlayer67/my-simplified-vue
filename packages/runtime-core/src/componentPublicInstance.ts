@@ -39,6 +39,10 @@ export const PublicInstanceProxyHandlers: ProxyHandler<any> = {
       console.warn(`属性 ${key} 属于props，不能被修改`)
       return false
     }
+    if(key[0] === '$'){
+      console.warn(`属性 ${key} 以$开头，不能被修改`)
+      return false
+    }
     return true
   },
 }
