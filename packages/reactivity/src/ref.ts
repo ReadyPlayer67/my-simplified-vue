@@ -65,7 +65,14 @@ export function triggerRefValue(ref) {
 }
 
 export function ref<T>(val) {
-  return new RefImpl<T>(val)
+  return createRef<T>(val)
+}
+
+function createRef<T>(rawValue: unknown) {
+  if (isRef(rawValue)) {
+    return rawValue
+  }
+  return new RefImpl<T>(rawValue)
 }
 
 export function isRef(ref) {

@@ -51,6 +51,10 @@ function createReactiveObject(
   baseHandler,
   proxyMap: WeakMap<Target, any>
 ) {
+  //如果target已经是一个Proxy代理过的对象，直接返回
+  if(target[ReactiveFlags.RAW]){
+    return target
+  }
   //如果proxyMap中存在target对应的代理对象，直接返回
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {

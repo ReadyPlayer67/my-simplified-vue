@@ -22,4 +22,11 @@ describe('reactive', () => {
     expect(isReactive(observed.nested)).toBe(true)
     expect(isReactive(observed.arr[0])).toBe(true)
   })
+
+  it('observing already observed value should return same Proxy', () => {
+    const original = { foo: 1 }
+    const observed = reactive(original)
+    const observed2 = reactive(observed)
+    expect(observed2).toBe(observed)
+  })
 })
