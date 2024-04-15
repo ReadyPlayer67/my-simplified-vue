@@ -2,6 +2,10 @@ import { isTracking, trackEffects, triggerEffects } from './effect'
 import { hasChange, isObject } from '@my-simplified-vue/shared'
 import { reactive } from './reactive'
 
+export interface Ref<T = any> {
+  value: T
+}
+
 //ref接收的都是基本类型的变量，无法用proxy做代理
 //通过创建一个对象来包裹基本类型，通过改写get set方法去拦截
 //这也就是用ref包裹以后必须通过.value去获取值的原因
@@ -75,19 +79,19 @@ function createRef<T>(rawValue: unknown) {
   return new RefImpl<T>(rawValue)
 }
 
-export function isRef(ref) {
+export function isRef<T>(r: any): r is Ref<T> {
   //通过一个属性来判断是否的ref，即是否是RefImpl实例
   //这里要转换成boolean，不然有可能拿到undefined
-  return !!ref.__v_isRef
+  return !!r.__v_isRef
 }
 
 export function unRef(ref) {
   return isRef(ref) ? ref.value : ref
 }
 
-export function toRef(object, key) {
-  const val = object[key]
-  return isRef(val) ? val : new ObjectRefImpl(object, key)
+export function toRef(source: Record<string, any>, key: string) {
+  const val = source[key]
+  return isRef(val) ? val : new ObjectRefImpl(source, key)
 }
 
 export function toRefs(obj): any {
